@@ -1,10 +1,10 @@
 {
   "hooks": [
     {
-      "name": "validate-teammate-summary",
-      "description": "Verify that each research teammate produces a valid summary.md after completing analysis",
+      "name": "validate-finding",
+      "description": "Verify that each research agent produces valid finding-*.md files with required YAML frontmatter after completing analysis",
       "event": "afterToolResult",
-      "command": "bash $PLUGIN_DIR/scripts/validate-summary.sh $TOOL_INPUT",
+      "command": "bash $PLUGIN_DIR/scripts/validate-finding.sh $TOOL_INPUT",
       "condition": {
         "tool": "TaskUpdate",
         "matchArgs": {

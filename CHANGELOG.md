@@ -4,6 +4,18 @@ All notable changes to Otterwise will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-03-20
+
+### Changed
+
+- Research methodology: Exploration Board with findings, threads, synthesis
+- Agents loop continuously producing findings (not one-shot)
+- Head orchestrates cross-pollination via threads
+
+### Removed
+
+- Dashboard (React + force-graph)
+
 ## [0.1.0] - 2026-03-20
 
 ### Added
@@ -18,10 +30,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `/otterwise:research` skill to start a new research session
 - `/otterwise:continue` skill to expand the research graph from existing findings
 - `/otterwise:status` skill to display the research graph as a tree
-- Interactive React dashboard with force-graph visualization (react-force-graph-2d)
-- Dashboard sidebar with node list, report panel with markdown rendering, and notebook preview
-- Vite dev server plugin serving reports, files, and notebooks from `.otterwise/` directory
-- Report parsing with gray-matter YAML frontmatter extraction
-- Quality validation hook (`validate-teammate-summary`) for teammate outputs
-- Teammate summary format with structured findings, confidence levels, and follow-up suggestions
+- Quality validation hook (`validate-finding`) for finding outputs
+- Finding format with YAML frontmatter, confidence levels, and possible threads
 - Resumable investigation sessions with persistent `.otterwise/` state

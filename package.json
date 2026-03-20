@@ -4,13 +4,9 @@
   "description": "Autonomous compound research platform for Claude Code",
   "private": true,
   "scripts": {
-    "dashboard": "cd dashboard && npm run dev",
-    "dashboard:build": "cd dashboard && npm run build",
-    "dashboard:install": "cd dashboard && npm install",
-    "setup": "cd servers && npm install && npm run build && cd ../dashboard && npm install",
+    "setup": "cd servers && npm install && npm run build",
     "server:build": "cd servers && npm run build",
-    "server:dev": "cd servers && npm run dev",
-    "typecheck": "cd dashboard && npx tsc --noEmit"
+    "server:dev": "cd servers && npm run dev"
   },
   "keywords": ["claude-code", "research", "data-analysis", "mcp", "plugin"],
   "license": "MIT",

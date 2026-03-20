@@ -6,7 +6,7 @@ Thanks for your interest in contributing! This guide covers development setup, t
 
 ### Prerequisites
 
-- Node.js 20+ (REQUIRED -- runs the MCP server and dashboard)
+- Node.js 20+ (REQUIRED -- runs the MCP server)
 - Python 3.10+ (REQUIRED for analysis)
 - Claude Code CLI
 
@@ -17,30 +17,9 @@ Thanks for your interest in contributing! This guide covers development setup, t
 cd servers
 npm install
 npm run build
-
-# Dashboard
-cd dashboard
-npm install
 ```
 
 ## Running Locally
-
-### Dashboard
-
-```bash
-cd dashboard
-npm run dev
-```
-
-Opens on http://localhost:5173. The Vite dev server includes a plugin that serves `/api/reports`, `/api/files/`, and `/api/notebooks` endpoints by scanning the `.otterwise/` directory.
-
-To build for production:
-
-```bash
-cd dashboard
-npm run build
-npm run preview
-```
 
 ### MCP Server
 
@@ -61,7 +40,17 @@ node servers/dist/index.js --health-check
 
 ### Running a Research Session
 
-Install Otterwise as a Claude Code extension, then run `/otterwise:research` in a Claude Code session. This creates the `.otterwise/` directory and orchestrates the full research pipeline.
+Install Otterwise as a Claude Code extension, then run `/otterwise:research` in a Claude Code session. This creates the `.otterwise/` directory and orchestrates the full exploration pipeline.
+
+## Exploration Data Formats
+
+All exploration data (findings, threads, syntheses) must conform to the schemas defined in [docs/schema.md](docs/schema.md). Key formats:
+
+- **Findings** (`finding-{agent}-{seq}.md`) -- Markdown with YAML frontmatter (id, exploration, agent, confidence, tags, timestamp, notebook_cell) and three body sections: Evidence, Implication, Possible Threads
+- **Threads** (`threads.json`) -- JSON array of thread objects linking findings with relation types (supports, contradicts, extends, causes, caused-by, correlates, qualifies)
+- **Synthesis** (`synthesis.md`) -- Markdown with YAML frontmatter (id, name, parent, dataset, status, findings_count, threads_count, agents) and three body sections: Key Threads, Standalone Findings, Open Questions
+
+See `docs/schema.md` for complete field definitions, naming conventions, and validation rules.
 
 ## Testing
 
@@ -74,30 +63,18 @@ Build the TypeScript server and verify the four MCP tools:
 - `get_kernel_state` returns correct variable metadata (type, shape, dtypes)
 - `install_package` accepts whitelisted packages and rejects everything else
 
-### Dashboard
-
-```bash
-cd dashboard
-npm run build    # TypeScript type-checking + Vite build
-```
-
-Verify the dashboard renders the research graph correctly by placing sample `report.md` files in a `.otterwise/` directory two levels above the dashboard folder.
-
 ### Quality Hooks
 
-The `validate-teammate-summary` hook in `hooks/hooks.json` runs automatically when a teammate marks their task as completed. It checks that `summary.md` exists and follows the expected format. If you modify the summary format, update the validation script in `scripts/` accordingly.
+The `validate-finding` hook in `hooks/hooks.json` runs automatically when an agent marks their task as completed. It checks that findings exist and follow the expected format. If you modify the finding format, update the validation script in `scripts/` accordingly.
 
 ## Code Style
 
-### TypeScript (Server + Dashboard)
+### TypeScript (Server)
 
 - Strict mode enabled (`strict: true` in tsconfig.json)
 - No unused locals or parameters (enforced by compiler)
 - No `any` type abuse -- use proper interfaces
-- ES2022 target with NodeNext module resolution (server)
-- Use path aliases (`@/` maps to `src/`) in dashboard
-- Tailwind CSS v4 for styling in dashboard
-- Functional React components with hooks
+- ES2022 target with NodeNext module resolution
 
 ### Python (Bridge Worker)
 
@@ -138,11 +115,9 @@ pandas reader (read_csv, read_parquet, read_excel) when loading data.
 ### PR Checklist
 
 - [ ] TypeScript server compiles without errors (`cd servers && npm run build`)
-- [ ] Dashboard compiles without errors (`cd dashboard && npm run build`)
 - [ ] Python type hints added for new functions
 - [ ] MCP server starts and responds to tool calls (`node servers/dist/index.js --health-check`)
-- [ ] Dashboard renders correctly with sample data
-- [ ] Summary validation hook passes if summary format was changed
+- [ ] Finding validation hook passes if finding format was changed
 - [ ] No hardcoded paths or credentials
 
 ## Reporting Issues

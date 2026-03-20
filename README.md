@@ -1,248 +1,232 @@
+<div align="center">
+
 ```
-      _____
-     /     \      ___
-    | o   o |    / _ \
-    |   w   |   | (_) |tterwise
-     \ ~~~ /     \___/
-      -----
+        __         __
+       /  \.-"""-./  \
+       \    -   -    /
+        |   o   o   |
+        \  ._---_.  /
+        /  /     \  \     O t t e r w i s e
+       /  /       \  \
+      {  |    _    |  }    autonomous research that never stops
+       \  \  \_/  /  /
+        \  '-...-'  /
+         '-..___..-'
 ```
 
 # Otterwise
 
-> Autonomous compound research platform for Claude Code
+**Give it data. It builds a universe of insights.**
 
-Like an otter using tools to crack open shellfish, Otterwise autonomously cracks open your datasets -- spawning research teams, producing Jupyter notebooks, and building an ever-expanding graph of discoveries.
+[![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](LICENSE)
+[![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://github.com/cantsleep18/otterwise)
+[![TypeScript](https://img.shields.io/badge/MCP_Server-TypeScript-blue.svg)](#)
+[![Python](https://img.shields.io/badge/Analysis-Python_3.10+-yellow.svg)](#)
 
-## Features
+</div>
 
-- **Autonomous Research** -- Give it a dataset and goals; it designs and executes multi-agent analysis
-- **Graph-Based Expansion** -- Research grows as a DAG, not linearly. Each node branches into new directions
-- **Jupyter Notebooks** -- Every analysis produces reproducible `.ipynb` notebooks with inline figures
-- **Interactive Dashboard** -- Real-time force-graph visualization of your research graph
-- **Agent Teams** -- Parallel analysis by dynamically created teammate agents
-- **Quality Hooks** -- Automated validation ensures every teammate produces a well-structured summary
+---
 
-## Installation
+## What is this?
 
-### As Claude Code Plugin (recommended)
+You give Otterwise a CSV. It spawns a team of AI researchers. They analyze your data **in parallel loops** — each one producing findings, reading each other's discoveries, and digging deeper. The research lead watches everything, connecting the dots between findings into **threads**. When the dust settles, you get a synthesis report with the key discoveries and open questions that seed the next round.
 
-```bash
-# 1. Add the marketplace
-/plugin marketplace add cantsleep18/otterwise
+```
+You:  /otterwise:research sales_data.csv "why is revenue dropping?"
 
-# 2. Install the plugin
-/plugin install otterwise
+      ... agents loop, findings accumulate, threads form ...
 
-# 3. Set up the environment (isolated — doesn't touch your Python)
-/otterwise:ow-doctor
+Otterwise:
+  Thread 1: Top 5% of customers (all corporate, West region) drive 38% of revenue
+            → Corporate retention is the #1 lever
+  Thread 2: Individual spending dropped 23% after March price increase
+            → Price elasticity is much higher than assumed
+  Thread 3: Electronics dominate Q4 but crater in Q1
+            → Seasonal inventory strategy needed
+
+  Open Questions:
+  → What predicts corporate customer churn?
+  → Is the price effect uniform across regions?
+  → How does category mix shift by customer segment?
+
+You:  /otterwise:continue "dig into corporate churn"
+      ... another round, deeper insights ...
 ```
 
-`ow-doctor` creates an isolated virtual environment, installs all dependencies, and verifies everything works. Your system Python is never modified.
+**It doesn't stop.** Each exploration opens new questions. Each question leads to new findings. The research graph grows like a living organism.
 
-To update later, just run `/otterwise:ow-doctor` again — it checks versions and updates what's needed.
+---
 
-### Manual Installation
+## How It Works
+
+### The Exploration Board
+
+```
+                    ┌──────────────────────────────────┐
+                    │         Exploration Board         │
+                    │                                   │
+                    │  [finding]──thread──[finding]      │
+                    │      |                  |          │
+                    │   thread            thread         │
+                    │      |                  |          │
+                    │  [finding]          [finding]      │
+                    │      |                             │
+                    │   thread──────────[finding]        │
+                    │                                   │
+                    └──────────────────────────────────┘
+                              ▲            ▲
+                    ┌─────────┘            └─────────┐
+                    │                                │
+              Agent Alpha                      Agent Beta
+              (looping)                        (looping)
+                    │                                │
+              ┌─────┴─────┐                  ┌──────┴─────┐
+              │  analyze   │                 │  analyze    │
+              │  discover  │                 │  discover   │
+              │  write     │                 │  read board │
+              │  read board│                 │  cross-ref  │
+              │  repeat... │                 │  repeat...  │
+              └────────────┘                 └─────────────┘
+```
+
+1. **Explorer agents** loop continuously — analyze, write findings, read each other's findings, go deeper
+2. **Research lead** watches the board — discovers threads between findings, tells agents to cross-check
+3. When insights stop flowing, the lead writes a **synthesis** — the story of what was found
+4. Open questions from the synthesis become seeds for the next `/otterwise:continue`
+
+### The Research Graph
+
+```
+exploration-001 (initial profiling)
+ ├── 5 findings, 3 threads
+ ├── exploration-002 (customer segments)
+ │    ├── 4 findings, 2 threads (1 cross-exploration)
+ │    └── exploration-004 (churn prediction) ← in progress
+ └── exploration-003 (regional analysis)
+      └── 3 findings, 2 threads
+```
+
+Each exploration links to its parent. Findings can thread across explorations. The graph grows in any direction.
+
+---
+
+## Install
+
+### Plugin (recommended)
+
+```bash
+# In Claude Code:
+/plugin marketplace add cantsleep18/otterwise
+/plugin install otterwise
+/otterwise:ow-doctor     # one command: builds server, creates venv, installs deps
+```
+
+Your Python is never touched. Everything lives in an isolated venv.
+
+### Manual
 
 ```bash
 git clone https://github.com/cantsleep18/otterwise
 cd otterwise
 claude --plugin-dir .
-/otterwise:ow-doctor    # Sets up isolated Python environment
+/otterwise:ow-doctor
 ```
 
-## Quick Start
+---
+
+## Use
 
 ```bash
-# After installation, in any Claude Code session:
-/otterwise:research path/to/your/data.csv
+# Start exploring
+/otterwise:research path/to/data.csv
 
-# Expand the research graph
+# Go deeper
 /otterwise:continue
+/otterwise:continue "focus on customer churn"
 
-# Check progress
+# Check the graph
 /otterwise:status
 ```
 
-### Try the Dashboard
+```
+Otterwise Exploration Graph
+├── ● initial-profiling (5 findings, 3 threads)
+│   ├── ● customer-segments (4 findings, 2 threads)
+│   │   └── ○ churn-prediction (in-progress)
+│   └── ● regional-analysis (3 findings, 2 threads)
 
-```bash
-# Clone the repo (if not already)
-git clone https://github.com/cantsleep18/otterwise
-cd otterwise/dashboard
-npm install && npm run dev
-# Open http://localhost:5173 — see sample research graph with 5 nodes
+Total: 3 explorations | 12 findings | 7 threads | 5 open questions
 ```
 
-## Demo
+---
 
-The `demo/` folder includes sample data so you can explore the dashboard immediately:
-- `demo/sample_sales.csv` -- 100-row e-commerce dataset
-- `demo/.otterwise/` -- 5 pre-generated research nodes forming a DAG
-
-Run `npm run dashboard` from the project root to see the interactive research graph.
-
-## How It Works
+## What Gets Produced
 
 ```
-User
- |
- |  /otterwise:research
- v
-Research Lead Agent
- |
- |  reads config + previous reports
- |  plans 3-5 parallel objectives
- v
-Agent Team (dynamic teammates)
- |  each teammate:
- |    - creates a Jupyter notebook via MCP server
- |    - executes cell-by-cell Python analysis
- |    - writes summary.md
- v
-Research Lead
- |  synthesizes findings into report.md
- |  identifies branches for future expansion
- v
 .otterwise/
-  config.json
-  YYYYMMDD_HHMMSS_hash_name/
-    report.md           <-- graph node (YAML frontmatter with parent/related IDs)
-    teammate-1/
-      notebook.ipynb
-      summary.md
-    teammate-2/
-      ...
+├── config.json
+├── exploration-001_a7f3_initial-profiling/
+│   ├── findings/
+│   │   ├── finding-alpha-001.md      ← "Top 5% = 38% of revenue"
+│   │   ├── finding-alpha-002.md      ← "Age correlates with spending"
+│   │   ├── finding-beta-001.md       ← "West region dominates"
+│   │   └── finding-gamma-001.md      ← "Credit card = 2.3x spending"
+│   ├── threads.json                  ← connections between findings
+│   ├── alpha/notebook.ipynb          ← reproducible Jupyter notebook
+│   ├── beta/notebook.ipynb
+│   ├── gamma/notebook.ipynb
+│   └── synthesis.md                  ← the story + open questions
 ```
 
-Each `report.md` contains YAML frontmatter with `id`, `parent`, `related`, and `status` fields that define the research DAG. Running `/otterwise:continue` reads all existing reports and expands the graph into new directions.
+**Findings** are atomic discoveries with evidence, confidence scores, and suggested connections.
+**Threads** are verified connections between findings — the "aha" moments.
+**Synthesis** is the narrative that ties it all together.
 
-## Usage
+---
 
-Otterwise registers three slash commands in Claude Code:
-
-| Command | Description |
-|---------|-------------|
-| `/otterwise:research` | Start a new autonomous research session on a dataset |
-| `/otterwise:continue` | Expand the research graph with new analysis directions |
-| `/otterwise:status` | Display the current research graph as a tree |
-
-### `/otterwise:research`
-
-Creates `.otterwise/config.json` with dataset path and goals, invokes the research lead, and produces the first set of notebooks and reports. This becomes the root node of the research DAG.
-
-### `/otterwise:continue`
-
-Reads all existing reports, identifies promising leads and gaps, and spawns a new round of analysis. Optionally specify a focus direction or a specific node to expand from.
-
-### `/otterwise:status`
-
-Displays a tree view of the research graph:
+## Architecture
 
 ```
-Research Graph:
-+-- completed  basic-profiling (5 findings)
-|   +-- completed  correlation-deep-dive (4 findings)
-|   |   \-- in-progress  time-series-analysis
-|   \-- completed  distribution-analysis (3 findings)
-|       \-- pending  segmentation
-\-- (no more nodes)
+Claude Code ──stdio──▶ TypeScript MCP Server ──Unix Socket──▶ Python Worker
+                       (Node.js)                              (IPython + pandas)
+                       ├── 4 tools                            ├── persistent kernel
+                       ├── bridge manager                     ├── notebook generation
+                       ├── session lock                       ├── matplotlib capture
+                       └── JSON-RPC client                    └── 60s timeout/cell
 ```
 
-## Dashboard
+The MCP server is TypeScript. Python is only used for the actual data crunching — via a JSON-RPC bridge to a long-running IPython kernel.
 
-The interactive dashboard provides a force-graph visualization of your research and lets you browse reports and notebooks.
-
-```bash
-cd dashboard
-npm install
-npm run dev
-```
-
-Open http://localhost:5173 to view the dashboard. It polls the `.otterwise/` directory for report changes every 5 seconds.
-
-**Tech stack:** React 18, Vite, Tailwind CSS v4, react-force-graph-2d, gray-matter for frontmatter parsing.
+---
 
 ## Requirements
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- Node.js 20+ (REQUIRED -- runs the MCP server and dashboard)
-- Python 3.10+ (REQUIRED for analysis)
+- **Claude Code** CLI
+- **Node.js 20+** — runs the MCP server
+- **Python 3.10+** — runs the analysis kernel
 
-### Python Dependencies
+`/otterwise:ow-doctor` handles everything else.
 
-Installed into an isolated venv (no `mcp` package needed -- the server is now TypeScript):
-ipython, nbformat, pandas, numpy, scipy, statsmodels, scikit-learn, matplotlib, seaborn
+---
 
-## Configuration
+## Demo
 
-Otterwise is configured via `settings.json` at the project root, which grants permissions for the MCP server tools and the Node.js runtime:
+The `demo/` folder has sample data ready to explore:
 
-```json
-{
-  "permissions": {
-    "allow": [
-      "mcp__python-repl__execute_python",
-      "mcp__python-repl__start_notebook",
-      "mcp__python-repl__get_kernel_state",
-      "mcp__python-repl__install_package",
-      "Bash(node*)"
-    ]
-  }
-}
+```bash
+# Clone and try immediately
+git clone https://github.com/cantsleep18/otterwise
+cd otterwise && ls demo/.otterwise/
+# → exploration-001 with 5 findings, 3 threads, synthesis
+# → exploration-002 with 3 findings, 2 threads, cross-exploration thread
 ```
 
-Research session configuration is stored in `.otterwise/config.json`, created automatically by `/otterwise:research`:
-
-```json
-{
-  "dataset": "/absolute/path/to/data.csv",
-  "goals": ["Identify key drivers of churn", "Find seasonal patterns"],
-  "created": "2026-03-20T10:00:00Z"
-}
-```
-
-## Project Structure
-
-```
-otterwise/
-  agents/
-    research-lead.md     Research lead agent (DAG-aware research orchestrator)
-  dashboard/             React + Vite interactive dashboard
-    src/
-      components/        ResearchGraph, Sidebar, ReportPanel, NotebookPreview
-      lib/               Report parsing and graph building
-      types.ts           Shared TypeScript types
-  demo/                  Sample data and pre-generated research for demo
-    sample_sales.csv     100-row e-commerce dataset
-    .otterwise/          Pre-generated research DAG
-  hooks/
-    hooks.json           Quality validation hook for teammate summaries
-  servers/
-    src/                 TypeScript MCP server source
-    dist/                Built server output (node servers/dist/index.js)
-    bridge/              Python JSON-RPC worker for IPython kernel
-  skills/
-    research/            /otterwise:research skill
-    continue/            /otterwise:continue skill
-    status/              /otterwise:status skill
-  settings.json          Claude Code permission configuration
-```
-
-### MCP Server Tools
-
-The TypeScript MCP server (`servers/dist/index.js`) exposes four tools over stdio, delegating Python execution to a JSON-RPC bridge worker:
-
-| Tool | Description |
-|------|-------------|
-| `execute_python` | Run code in a persistent IPython kernel; appends cell and output to a notebook |
-| `start_notebook` | Create a new `.ipynb` file and initialize the kernel with dataset loaded as `df` |
-| `get_kernel_state` | Return current kernel variables with types, shapes, and dtypes |
-| `install_package` | Install a whitelisted data-science package via pip |
+---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and PR guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Data formats are defined in [docs/schema.md](docs/schema.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — do whatever you want with it.
