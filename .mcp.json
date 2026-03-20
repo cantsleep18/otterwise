@@ -1,11 +1,11 @@
 {
   "mcpServers": {
     "python-repl": {
-      "command": "bash",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/start.sh"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/dist/index.js"],
       "env": {
         "OTTERWISE_VENV": "${CLAUDE_PLUGIN_DATA}/.venv",
-        "PYTHONUNBUFFERED": "1"
+        "NODE_ENV": "production"
       }
     }
   }

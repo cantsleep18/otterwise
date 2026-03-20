@@ -7,7 +7,9 @@
     "dashboard": "cd dashboard && npm run dev",
     "dashboard:build": "cd dashboard && npm run build",
     "dashboard:install": "cd dashboard && npm install",
-    "setup": "pip install -r servers/requirements.txt && cd dashboard && npm install",
+    "setup": "cd servers && npm install && npm run build && cd ../dashboard && npm install",
+    "server:build": "cd servers && npm run build",
+    "server:dev": "cd servers && npm run dev",
     "typecheck": "cd dashboard && npx tsc --noEmit"
   },
   "keywords": ["claude-code", "research", "data-analysis", "mcp", "plugin"],

@@ -165,19 +165,17 @@ Open http://localhost:5173 to view the dashboard. It polls the `.otterwise/` dir
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- Python 3.11+ with pip
-- Node.js 20+ (for the dashboard)
+- Node.js 20+ (REQUIRED -- runs the MCP server and dashboard)
+- Python 3.10+ (REQUIRED for analysis)
 
 ### Python Dependencies
 
-The MCP server requires: `mcp` (FastMCP), `ipython`, `nbformat`
-
-Analysis packages installed on demand via the `install_package` tool:
-pandas, numpy, scipy, statsmodels, scikit-learn, matplotlib, seaborn
+Installed into an isolated venv (no `mcp` package needed -- the server is now TypeScript):
+ipython, nbformat, pandas, numpy, scipy, statsmodels, scikit-learn, matplotlib, seaborn
 
 ## Configuration
 
-Otterwise is configured via `settings.json` at the project root, which grants permissions for the MCP Python REPL server tools:
+Otterwise is configured via `settings.json` at the project root, which grants permissions for the MCP server tools and the Node.js runtime:
 
 ```json
 {
@@ -186,7 +184,8 @@ Otterwise is configured via `settings.json` at the project root, which grants pe
       "mcp__python-repl__execute_python",
       "mcp__python-repl__start_notebook",
       "mcp__python-repl__get_kernel_state",
-      "mcp__python-repl__install_package"
+      "mcp__python-repl__install_package",
+      "Bash(node*)"
     ]
   }
 }
@@ -219,7 +218,9 @@ otterwise/
   hooks/
     hooks.json           Quality validation hook for teammate summaries
   servers/
-    python_repl.py       MCP server: IPython kernel with notebook integration
+    src/                 TypeScript MCP server source
+    dist/                Built server output (node servers/dist/index.js)
+    bridge/              Python JSON-RPC worker for IPython kernel
   skills/
     research/            /otterwise:research skill
     continue/            /otterwise:continue skill
@@ -229,7 +230,7 @@ otterwise/
 
 ### MCP Server Tools
 
-The Python REPL MCP server (`servers/python_repl.py`) exposes four tools over stdio:
+The TypeScript MCP server (`servers/dist/index.js`) exposes four tools over stdio, delegating Python execution to a JSON-RPC bridge worker:
 
 | Tool | Description |
 |------|-------------|

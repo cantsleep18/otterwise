@@ -8,8 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Python REPL MCP server with 4 tools: `execute_python`, `start_notebook`, `get_kernel_state`, `install_package`
+- TypeScript MCP server with 4 tools: `execute_python`, `start_notebook`, `get_kernel_state`, `install_package`
+- JSON-RPC bridge architecture: Node.js server manages Python worker process over Unix socket
 - Persistent IPython kernel with matplotlib figure capture and notebook cell appending
+- Session locking and platform-aware utilities
 - Whitelisted package installation (pandas, numpy, scipy, statsmodels, scikit-learn, matplotlib, seaborn)
 - Research lead agent with DAG-based research graph expansion
 - Dynamic agent team creation for parallel multi-objective analysis

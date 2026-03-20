@@ -6,16 +6,17 @@ Thanks for your interest in contributing! This guide covers development setup, t
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 20+
+- Node.js 20+ (REQUIRED -- runs the MCP server and dashboard)
+- Python 3.10+ (REQUIRED for analysis)
 - Claude Code CLI
 
 ### Install Dependencies
 
 ```bash
-# Python MCP server
+# TypeScript MCP server
 cd servers
-pip install mcp ipython nbformat
+npm install
+npm run build
 
 # Dashboard
 cd dashboard
@@ -43,13 +44,20 @@ npm run preview
 
 ### MCP Server
 
-The Python REPL server runs over stdio and is started automatically by Claude Code. To test manually:
+The TypeScript MCP server runs over stdio and is started automatically by Claude Code via `node servers/dist/index.js`. It spawns a Python JSON-RPC worker for IPython execution.
+
+To build the server:
 
 ```bash
-python servers/python_repl.py
+cd servers
+npm run build
 ```
 
-It reads MCP JSON-RPC messages from stdin and writes responses to stdout.
+To verify the server starts correctly:
+
+```bash
+node servers/dist/index.js --health-check
+```
 
 ### Running a Research Session
 
@@ -59,7 +67,7 @@ Install Otterwise as a Claude Code extension, then run `/otterwise:research` in 
 
 ### MCP Server
 
-Test the four MCP tools by sending JSON-RPC requests to the server's stdin. Verify:
+Build the TypeScript server and verify the four MCP tools:
 
 - `start_notebook` creates a valid `.ipynb` file with setup cell and kernel output
 - `execute_python` appends cells and captures stdout, stderr, and base64-encoded figures
@@ -81,20 +89,23 @@ The `validate-teammate-summary` hook in `hooks/hooks.json` runs automatically wh
 
 ## Code Style
 
-### TypeScript (Dashboard)
+### TypeScript (Server + Dashboard)
 
 - Strict mode enabled (`strict: true` in tsconfig.json)
 - No unused locals or parameters (enforced by compiler)
-- Use path aliases (`@/` maps to `src/`)
-- Tailwind CSS v4 for styling
+- No `any` type abuse -- use proper interfaces
+- ES2022 target with NodeNext module resolution (server)
+- Use path aliases (`@/` maps to `src/`) in dashboard
+- Tailwind CSS v4 for styling in dashboard
 - Functional React components with hooks
 
-### Python (MCP Server)
+### Python (Bridge Worker)
 
 - Type hints on all function signatures
 - Use `from __future__ import annotations` for modern annotation syntax
 - Format with Black or Ruff
 - Keep the whitelisted packages list in `WHITELISTED_PACKAGES` up to date
+- No MCP dependency -- the worker uses plain asyncio + socket JSON-RPC
 
 ### Shell (Scripts)
 
@@ -126,9 +137,10 @@ pandas reader (read_csv, read_parquet, read_excel) when loading data.
 
 ### PR Checklist
 
-- [ ] TypeScript compiles without errors (`cd dashboard && npm run build`)
+- [ ] TypeScript server compiles without errors (`cd servers && npm run build`)
+- [ ] Dashboard compiles without errors (`cd dashboard && npm run build`)
 - [ ] Python type hints added for new functions
-- [ ] MCP server starts and responds to tool calls
+- [ ] MCP server starts and responds to tool calls (`node servers/dist/index.js --health-check`)
 - [ ] Dashboard renders correctly with sample data
 - [ ] Summary validation hook passes if summary format was changed
 - [ ] No hardcoded paths or credentials
