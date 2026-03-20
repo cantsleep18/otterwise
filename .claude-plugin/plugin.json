@@ -1,0 +1,14 @@
+{
+  "name": "otterwise",
+  "version": "1.0.0",
+  "description": "Otterwise - compound research platform with autonomous data-driven research and graph-based exploration",
+  "agents": ["agents/research-lead.md"],
+  "skills": [
+    "skills/research/SKILL.md",
+    "skills/continue/SKILL.md",
+    "skills/status/SKILL.md"
+  ],
+  "hooks": "hooks/hooks.json",
+  "mcpServers": ".mcp.json",
+  "settings": "settings.json"
+}

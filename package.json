@@ -1,0 +1,19 @@
+{
+  "name": "otterwise",
+  "version": "0.1.0",
+  "description": "Autonomous compound research platform for Claude Code",
+  "private": true,
+  "scripts": {
+    "dashboard": "cd dashboard && npm run dev",
+    "dashboard:build": "cd dashboard && npm run build",
+    "dashboard:install": "cd dashboard && npm install",
+    "setup": "pip install -r servers/requirements.txt && cd dashboard && npm install",
+    "typecheck": "cd dashboard && npx tsc --noEmit"
+  },
+  "keywords": ["claude-code", "research", "data-analysis", "mcp", "plugin"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}

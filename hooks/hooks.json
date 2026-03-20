@@ -1,0 +1,16 @@
+{
+  "hooks": [
+    {
+      "name": "validate-teammate-summary",
+      "description": "Verify that each research teammate produces a valid summary.md after completing analysis",
+      "event": "afterToolResult",
+      "command": "bash $PLUGIN_DIR/scripts/validate-summary.sh $TOOL_INPUT",
+      "condition": {
+        "tool": "TaskUpdate",
+        "matchArgs": {
+          "status": "completed"
+        }
+      }
+    }
+  ]
+}

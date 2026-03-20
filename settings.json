@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__python-repl__execute_python",
+      "mcp__python-repl__start_notebook",
+      "mcp__python-repl__get_kernel_state",
+      "mcp__python-repl__install_package",
+      "Bash(python*)",
+      "Bash(pip*)"
+    ]
+  }
+}

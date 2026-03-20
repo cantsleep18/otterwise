@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "python-repl": {
+      "command": "python",
+      "args": ["servers/python_repl.py"],
+      "cwd": ".",
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}
