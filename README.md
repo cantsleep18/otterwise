@@ -33,25 +33,21 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 # 2. Install the plugin
 /plugin install otterwise
 
-# 3. Install Python dependencies
-pip install -r ~/.claude/plugins/cache/otterwise/servers/requirements.txt
+# 3. Set up the environment (isolated — doesn't touch your Python)
+/otterwise:ow-doctor
 ```
 
-Done! `/otterwise:research`, `/otterwise:continue`, `/otterwise:status` are now available in every project.
+`ow-doctor` creates an isolated virtual environment, installs all dependencies, and verifies everything works. Your system Python is never modified.
+
+To update later, just run `/otterwise:ow-doctor` again — it checks versions and updates what's needed.
 
 ### Manual Installation
 
 ```bash
-# Clone the repo
 git clone https://github.com/cantsleep18/otterwise
 cd otterwise
-
-# Install dependencies
-npm run setup    # Python + Node deps
-
-# Use with Claude Code
 claude --plugin-dir .
-/otterwise:research path/to/your/data.csv
+/otterwise:ow-doctor    # Sets up isolated Python environment
 ```
 
 ## Quick Start

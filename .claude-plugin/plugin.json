@@ -12,6 +12,7 @@
   "keywords": ["research", "data-analysis", "jupyter", "mcp", "agent-team"],
   "agents": ["agents/research-lead.md"],
   "skills": [
+    "skills/ow-doctor/SKILL.md",
     "skills/research/SKILL.md",
     "skills/continue/SKILL.md",
     "skills/status/SKILL.md"

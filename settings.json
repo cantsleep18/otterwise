@@ -6,7 +6,11 @@
       "mcp__python-repl__get_kernel_state",
       "mcp__python-repl__install_package",
       "Bash(python*)",
-      "Bash(pip*)"
+      "Bash(pip*)",
+      "Bash(uv*)",
+      "Bash(bash*)",
+      "Bash(curl*)",
+      "Bash(chmod*)"
     ]
   }
 }

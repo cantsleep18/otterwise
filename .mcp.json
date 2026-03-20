@@ -1,9 +1,10 @@
 {
   "mcpServers": {
     "python-repl": {
-      "command": "python",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/python_repl.py"],
+      "command": "bash",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/start.sh"],
       "env": {
+        "OTTERWISE_VENV": "${CLAUDE_PLUGIN_DATA}/.venv",
         "PYTHONUNBUFFERED": "1"
       }
     }
