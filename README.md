@@ -22,22 +22,59 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 - **Agent Teams** -- Parallel analysis by dynamically created teammate agents
 - **Quality Hooks** -- Automated validation ensures every teammate produces a well-structured summary
 
+## Installation
+
+### As Claude Code Plugin (recommended)
+
+```bash
+# 1. Add the marketplace
+/plugin marketplace add cantsleep18/otterwise
+
+# 2. Install the plugin
+/plugin install otterwise
+
+# 3. Install Python dependencies
+pip install -r ~/.claude/plugins/cache/otterwise/servers/requirements.txt
+```
+
+Done! `/otterwise:research`, `/otterwise:continue`, `/otterwise:status` are now available in every project.
+
+### Manual Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/cantsleep18/otterwise
+cd otterwise
+
+# Install dependencies
+npm run setup    # Python + Node deps
+
+# Use with Claude Code
+claude --plugin-dir .
+/otterwise:research path/to/your/data.csv
+```
+
 ## Quick Start
 
 ```bash
-# Clone and try the demo dashboard
-git clone https://github.com/YOUR_USERNAME/otterwise
+# After installation, in any Claude Code session:
+/otterwise:research path/to/your/data.csv
+
+# Expand the research graph
+/otterwise:continue
+
+# Check progress
+/otterwise:status
+```
+
+### Try the Dashboard
+
+```bash
+# Clone the repo (if not already)
+git clone https://github.com/cantsleep18/otterwise
 cd otterwise/dashboard
 npm install && npm run dev
-# Open http://localhost:5173 — you'll see sample research data
-
-# Or set up everything
-cd otterwise
-npm run setup    # Installs Python + Node dependencies
-
-# Use as Claude Code plugin
-claude --plugin-dir .
-/otterwise:research demo/sample_sales.csv
+# Open http://localhost:5173 — see sample research graph with 5 nodes
 ```
 
 ## Demo

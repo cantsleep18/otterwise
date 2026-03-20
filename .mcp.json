@@ -2,8 +2,7 @@
   "mcpServers": {
     "python-repl": {
       "command": "python",
-      "args": ["servers/python_repl.py"],
-      "cwd": ".",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/python_repl.py"],
       "env": {
         "PYTHONUNBUFFERED": "1"
       }
