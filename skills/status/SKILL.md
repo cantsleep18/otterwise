@@ -1,30 +1,33 @@
 ---
 name: status
-description: Show current state of Otterwise explorations
+description: Show the current state of Otterwise research
 ---
 
 # /otterwise:status
 
-Display the exploration graph and research progress.
+Display the current research graph status.
 
 ## Workflow
-1. Scan `.otterwise/` for all `synthesis.md` files
-2. Parse YAML frontmatter from each
-3. Display exploration tree:
+1. Scan `.otterwise/` for all `report.md` files
+2. Parse YAML frontmatter from each report
+3. Build and display a tree visualization:
 
 ```
-Otterwise Exploration Graph
-├── ● exploration-001 initial-profiling (5 findings, 3 threads)
-│   ├── ● exploration-002 customer-segments (4 findings, 5 threads)
-│   │   └── ○ exploration-004 churn-prediction (in-progress)
-│   └── ● exploration-003 west-region (3 findings, 2 threads)
+Research Graph:
+├── ● basic-profiling (completed, 5 findings)
+│   ├── ● correlation-deep-dive (completed, 4 findings)
+│   │   └── ○ time-series-analysis (in-progress)
+│   └── ● distribution-analysis (completed, 3 findings)
+│       └── ◌ segmentation (pending)
+└── (no more nodes)
 ```
 
-Legend: ● completed  ○ in-progress
+Legend: ● completed  ○ in-progress  ◌ pending  ✗ dead-end
 
 4. Show summary stats:
-   - Total explorations, findings, threads
-   - Total open questions across all explorations
-   - Dataset info
+   - Total nodes
+   - Completed / In-progress / Pending / Dead-end counts
+   - Total findings across all nodes
+   - Dataset info from config.json
 
-5. Show top open questions (candidates for /otterwise:continue)
+5. Mention Otterwise dashboard: "For interactive visualization, run: cd otterwise/dashboard && npm run dev"

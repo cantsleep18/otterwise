@@ -1,18 +1,9 @@
 {
   "name": "otterwise",
-  "version": "0.1.0",
-  "description": "Autonomous compound research platform for Claude Code. Analyzes datasets with parallel agent teams, producing Jupyter notebooks and an ever-expanding research graph.",
-  "author": {
-    "name": "cantsleep18",
-    "url": "https://github.com/cantsleep18"
-  },
-  "homepage": "https://github.com/cantsleep18/otterwise",
-  "repository": "https://github.com/cantsleep18/otterwise",
-  "license": "MIT",
-  "keywords": ["research", "data-analysis", "jupyter", "mcp", "agent-team"],
+  "version": "1.0.0",
+  "description": "Otterwise - compound research platform with autonomous data-driven research and graph-based exploration",
   "agents": ["agents/research-lead.md"],
   "skills": [
-    "skills/ow-doctor/SKILL.md",
     "skills/research/SKILL.md",
     "skills/continue/SKILL.md",
     "skills/status/SKILL.md"

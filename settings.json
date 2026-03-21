@@ -1,17 +1,19 @@
 {
+  "mcpServers": {
+    "python-repl": {
+      "command": "npx",
+      "args": ["tsx", "servers/python-repl/src/index.ts"],
+      "cwd": "/mnt/c/Allround/voidhound"
+    }
+  },
   "permissions": {
     "allow": [
       "mcp__python-repl__execute_python",
       "mcp__python-repl__start_notebook",
       "mcp__python-repl__get_kernel_state",
       "mcp__python-repl__install_package",
-      "Bash(node*)",
       "Bash(python*)",
-      "Bash(pip*)",
-      "Bash(uv*)",
-      "Bash(bash*)",
-      "Bash(curl*)",
-      "Bash(chmod*)"
+      "Bash(pip*)"
     ]
   }
 }

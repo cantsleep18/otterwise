@@ -1,10 +1,8 @@
 # Dependencies
 node_modules/
-servers/node_modules/
 
 # Build
 dist/
-servers/dist/
 *.egg-info/
 
 # Python
@@ -16,7 +14,10 @@ venv/
 
 # Environment
 .env
-.env.local
+.env.*
+
+# Logs
+*.log
 
 # OS
 .DS_Store

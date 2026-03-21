@@ -1,12 +1,9 @@
 {
   "mcpServers": {
     "python-repl": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/dist/index.js"],
-      "env": {
-        "OTTERWISE_VENV": "${CLAUDE_PLUGIN_DATA}/.venv",
-        "NODE_ENV": "production"
-      }
+      "command": "npx",
+      "args": ["tsx", "servers/python-repl/src/index.ts"],
+      "cwd": "/mnt/c/Allround/voidhound"
     }
   }
 }

@@ -6,83 +6,97 @@ Thanks for your interest in contributing! This guide covers development setup, t
 
 ### Prerequisites
 
-- Node.js 20+ (REQUIRED -- runs the MCP server)
-- Python 3.10+ (REQUIRED for analysis)
+- Node.js 20+
+- Python 3.11+ (for the Python worker)
 - Claude Code CLI
 
 ### Install Dependencies
 
 ```bash
-# TypeScript MCP server
-cd servers
+# MCP server (TypeScript)
+cd servers/python-repl
 npm install
-npm run build
+
+# Python worker dependencies
+pip install -r servers/requirements.txt
+
+# Dashboard
+cd dashboard
+npm install
 ```
 
 ## Running Locally
 
-### MCP Server
-
-The TypeScript MCP server runs over stdio and is started automatically by Claude Code via `node servers/dist/index.js`. It spawns a Python JSON-RPC worker for IPython execution.
-
-To build the server:
+### Dashboard
 
 ```bash
-cd servers
-npm run build
+cd dashboard
+npm run dev
 ```
 
-To verify the server starts correctly:
+Opens on http://localhost:5173. The Vite dev server includes a plugin that serves `/api/reports`, `/api/files/`, and `/api/notebooks` endpoints by scanning the `.otterwise/` directory.
+
+To build for production:
 
 ```bash
-node servers/dist/index.js --health-check
+cd dashboard
+npm run build
+npm run preview
+```
+
+### MCP Server
+
+The MCP server is a TypeScript process that spawns a Python worker for code execution. It runs over stdio and is started automatically by Claude Code. To test manually:
+
+```bash
+cd servers/python-repl
+npx tsx src/index.ts
 ```
 
 ### Running a Research Session
 
-Install Otterwise as a Claude Code extension, then run `/otterwise:research` in a Claude Code session. This creates the `.otterwise/` directory and orchestrates the full exploration pipeline.
-
-## Exploration Data Formats
-
-All exploration data (findings, threads, syntheses) must conform to the schemas defined in [docs/schema.md](docs/schema.md). Key formats:
-
-- **Findings** (`finding-{agent}-{seq}.md`) -- Markdown with YAML frontmatter (id, exploration, agent, confidence, tags, timestamp, notebook_cell) and three body sections: Evidence, Implication, Possible Threads
-- **Threads** (`threads.json`) -- JSON array of thread objects linking findings with relation types (supports, contradicts, extends, causes, caused-by, correlates, qualifies)
-- **Synthesis** (`synthesis.md`) -- Markdown with YAML frontmatter (id, name, parent, dataset, status, findings_count, threads_count, agents) and three body sections: Key Threads, Standalone Findings, Open Questions
-
-See `docs/schema.md` for complete field definitions, naming conventions, and validation rules.
+Install Otterwise as a Claude Code extension, then run `/otterwise:research` in a Claude Code session. This creates the `.otterwise/` directory and orchestrates the full research pipeline.
 
 ## Testing
 
 ### MCP Server
 
-Build the TypeScript server and verify the four MCP tools:
+Test the four MCP tools by starting the TypeScript server and sending JSON-RPC requests. Verify:
 
 - `start_notebook` creates a valid `.ipynb` file with setup cell and kernel output
 - `execute_python` appends cells and captures stdout, stderr, and base64-encoded figures
 - `get_kernel_state` returns correct variable metadata (type, shape, dtypes)
 - `install_package` accepts whitelisted packages and rejects everything else
 
+### Dashboard
+
+```bash
+cd dashboard
+npm run build    # TypeScript type-checking + Vite build
+```
+
+Verify the dashboard renders the research graph correctly by placing sample `report.md` files in a `.otterwise/` directory two levels above the dashboard folder.
+
 ### Quality Hooks
 
-The `validate-finding` hook in `hooks/hooks.json` runs automatically when an agent marks their task as completed. It checks that findings exist and follow the expected format. If you modify the finding format, update the validation script in `scripts/` accordingly.
+The `validate-teammate-summary` hook in `hooks/hooks.json` runs automatically when a teammate marks their task as completed. It checks that `summary.md` exists and follows the expected format. If you modify the summary format, update the validation script in `scripts/` accordingly.
 
 ## Code Style
 
-### TypeScript (Server)
+### TypeScript (Dashboard)
 
 - Strict mode enabled (`strict: true` in tsconfig.json)
 - No unused locals or parameters (enforced by compiler)
-- No `any` type abuse -- use proper interfaces
-- ES2022 target with NodeNext module resolution
+- Use path aliases (`@/` maps to `src/`)
+- Tailwind CSS v4 for styling
+- Functional React components with hooks
 
-### Python (Bridge Worker)
+### Python (Worker)
 
 - Type hints on all function signatures
 - Use `from __future__ import annotations` for modern annotation syntax
 - Format with Black or Ruff
 - Keep the whitelisted packages list in `WHITELISTED_PACKAGES` up to date
-- No MCP dependency -- the worker uses plain asyncio + socket JSON-RPC
 
 ### Shell (Scripts)
 
@@ -114,10 +128,11 @@ pandas reader (read_csv, read_parquet, read_excel) when loading data.
 
 ### PR Checklist
 
-- [ ] TypeScript server compiles without errors (`cd servers && npm run build`)
-- [ ] Python type hints added for new functions
-- [ ] MCP server starts and responds to tool calls (`node servers/dist/index.js --health-check`)
-- [ ] Finding validation hook passes if finding format was changed
+- [ ] Dashboard TypeScript compiles without errors (`cd dashboard && npm run build`)
+- [ ] MCP server TypeScript compiles without errors (`cd servers/python-repl && npx tsc --noEmit`)
+- [ ] MCP server starts and responds to tool calls
+- [ ] Dashboard renders correctly with sample data
+- [ ] Summary validation hook passes if summary format was changed
 - [ ] No hardcoded paths or credentials
 
 ## Reporting Issues
