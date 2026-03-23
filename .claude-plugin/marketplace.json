@@ -1,5 +1,10 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "otterwise",
+  "owner": {
+    "name": "cantsleep18",
+    "url": "https://github.com/cantsleep18"
+  },
   "plugins": [
     {
       "name": "otterwise",
@@ -8,11 +13,7 @@
       "source": "./",
       "category": "productivity",
       "homepage": "https://github.com/cantsleep18/otterwise",
-      "tags": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"],
-      "owner": {
-        "name": "cantsleep18",
-        "url": "https://github.com/cantsleep18"
-      }
+      "tags": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"]
     }
   ]
 }
