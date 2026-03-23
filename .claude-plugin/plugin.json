@@ -3,69 +3,12 @@
   "version": "1.0.0",
   "description": "Autonomous compound research platform — spawns agent teams to crack open your datasets with Jupyter notebooks and a graph of discoveries",
   "author": {
-    "name": "cantsleep18",
-    "url": "https://github.com/cantsleep18"
+    "name": "cantsleep18"
   },
   "repository": "https://github.com/cantsleep18/otterwise",
   "homepage": "https://github.com/cantsleep18/otterwise",
   "license": "MIT",
   "keywords": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"],
-  "agents": [
-    {
-      "path": "agents/research-lead.md"
-    }
-  ],
-  "skills": [
-    {
-      "path": "skills/research"
-    },
-    {
-      "path": "skills/continue"
-    },
-    {
-      "path": "skills/status"
-    },
-    {
-      "path": "skills/ow-setup"
-    }
-  ],
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": {
-          "tool": "TaskUpdate",
-          "matchArgs": {
-            "status": "completed"
-          }
-        },
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-summary.sh $TOOL_INPUT"
-          }
-        ]
-      }
-    ]
-  },
-  "mcpServers": {
-    "python-repl": {
-      "command": "npx",
-      "args": ["tsx", "servers/python-repl/src/index.ts"],
-      "cwd": "${CLAUDE_PLUGIN_ROOT}"
-    }
-  },
-  "settings": {
-    "permissions": {
-      "allow": [
-        "mcp__python-repl__execute_python",
-        "mcp__python-repl__start_notebook",
-        "mcp__python-repl__get_kernel_state",
-        "mcp__python-repl__install_package",
-        "mcp__python-repl__interrupt_execution",
-        "mcp__python-repl__reset_kernel",
-        "Bash(python*)",
-        "Bash(pip*)"
-      ]
-    }
-  }
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
 }
