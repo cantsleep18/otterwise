@@ -1,6 +1,6 @@
 {
   "hooks": {
-    "afterToolResult": [
+    "PostToolUse": [
       {
         "matcher": "TaskUpdate",
         "hooks": [
