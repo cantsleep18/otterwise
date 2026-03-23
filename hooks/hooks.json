@@ -9,6 +9,15 @@
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-summary.sh $TOOL_INPUT"
           }
         ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-autopilot-state.sh"
+          }
+        ]
       }
     ]
   }

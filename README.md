@@ -23,6 +23,7 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 | **Graph-Based Expansion** | Research grows as a DAG, not linearly -- each node branches into new directions |
 | **Jupyter Notebooks** | Every analysis produces reproducible `.ipynb` notebooks with inline figures |
 | **Agent Teams** | Parallel analysis by dynamically created teammate agents |
+| **Auto Pilot** | Multi-round autonomous research with intelligent direction selection |
 | **6 MCP Tools** | execute, notebook, state, install, interrupt, reset |
 | **Zero Dependencies** | Python worker uses only stdlib -- no `pip install` needed |
 
@@ -120,6 +121,10 @@ Each `report.md` has YAML frontmatter (`id`, `parent`, `related`, `status`) defi
 | `/otterwise:research` | Start a new research session on a dataset |
 | `/otterwise:continue` | Expand the research graph into new directions |
 | `/otterwise:status` | Display the research graph as a tree |
+| `/otterwise:autopilot` | Run autonomous multi-round research on a dataset |
+| `/otterwise:autopilot-pause` | Pause a running auto pilot session |
+| `/otterwise:autopilot-resume` | Resume a paused auto pilot session |
+| `/otterwise:autopilot-abort` | Abort auto pilot and generate partial results |
 
 ```
 Research Graph:
@@ -130,6 +135,48 @@ Research Graph:
 |       \-- pending  segmentation
 \-- (no more nodes)
 ```
+
+---
+
+## Auto Pilot
+
+Auto pilot automates the research → continue cycle, running multiple rounds of analysis without manual intervention.
+
+### Quick Start
+```bash
+/otterwise:autopilot
+```
+
+You'll be prompted for:
+- **Dataset** -- path to your data file
+- **Goals** -- research questions (optional)
+
+Auto pilot creates an `.otterwise/autopilot.json` config and runs up to 5 rounds of autonomous research.
+
+### Configuration
+
+Create `.otterwise/autopilot.json` to customize behavior:
+
+```json
+{
+  "maxIterations": 5,
+  "maxConcurrentTeammates": 3,
+  "explorationStrategy": "balanced",
+  "stopping": {
+    "minFindingsPerRound": 2,
+    "maxDeadEndRatio": 0.6
+  },
+  "scope": {
+    "depthLimit": 4
+  }
+}
+```
+
+### Controls
+- **Pause**: `/otterwise:autopilot-pause` -- completes current round, then pauses
+- **Resume**: `/otterwise:autopilot-resume` -- continues from where it paused
+- **Abort**: `/otterwise:autopilot-abort` -- stops immediately, generates partial report
+- **Status**: `/otterwise:status` -- shows auto pilot progress and research graph
 
 ---
 
@@ -193,6 +240,10 @@ otterwise/
     research/              /otterwise:research
     continue/              /otterwise:continue
     status/                /otterwise:status
+    autopilot/             /otterwise:autopilot
+    autopilot-pause/       /otterwise:autopilot-pause
+    autopilot-resume/      /otterwise:autopilot-resume
+    autopilot-abort/       /otterwise:autopilot-abort
   settings.json            Claude Code permissions
 ```
 

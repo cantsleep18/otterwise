@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Auto pilot mode (`/otterwise:autopilot`) for autonomous multi-round research
+- Pause/resume/abort controls for auto pilot sessions
+- Enhanced `/otterwise:status` with auto pilot progress display
+- Auto pilot configuration via `.otterwise/autopilot.json`
+- Decision engine with 5-factor scoring for research direction selection
+- 9-criteria stopping condition framework
+
 ### Changed
 
 - Migrated MCP server from Python (FastMCP) to TypeScript (MCP SDK) with Python child_process worker

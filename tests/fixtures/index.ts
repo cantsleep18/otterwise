@@ -6,6 +6,7 @@
  *   import { createMockBridge, createFailingBridge } from "../fixtures/index.js";
  *   import { notebooks, cells } from "../fixtures/index.js";
  *   import { configs, reports, reportFrontmatter } from "../fixtures/index.js";
+ *   import { scenarios, autopilotConfigs, autopilotStates } from "../fixtures/index.js";
  */
 
 // IPC message fixtures
@@ -38,6 +39,20 @@ export {
 } from "./configs.js";
 export type { OtterwiseConfig, ReportFrontmatter } from "./configs.js";
 
+// Autopilot fixtures
+export {
+  scenarios,
+  autopilotConfigs,
+  autopilotStates,
+} from "./autopilot-scenarios.js";
+export type {
+  AutopilotConfig,
+  AutopilotRound,
+  AutopilotState,
+  AutopilotScenario,
+  StoppingReason,
+} from "./autopilot-scenarios.js";
+
 // ── File paths for static fixtures ──────────────────────────────
 
 import { join, dirname } from "node:path";
@@ -51,4 +66,9 @@ export const fixturePaths = {
   sampleConfig: join(__dirname, "config.json"),
   sampleReport: join(__dirname, "report.md"),
   sampleNotebook: join(__dirname, "notebook.ipynb"),
+  autopilotConfig: join(__dirname, "autopilot-config.json"),
+  autopilotStateRunning: join(__dirname, "autopilot-state-running.json"),
+  autopilotStateCompleted: join(__dirname, "autopilot-state-completed.json"),
+  autopilotStatePaused: join(__dirname, "autopilot-state-paused.json"),
+  autopilotReport: join(__dirname, "autopilot-report.md"),
 };

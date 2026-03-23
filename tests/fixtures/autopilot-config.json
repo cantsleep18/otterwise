@@ -1,0 +1,15 @@
+{
+  "$schema": "autopilot-config",
+  "maxRounds": 5,
+  "maxTeamSize": 5,
+  "stoppingThreshold": 0.85,
+  "researchTimeoutMinutes": 30,
+  "seedPhrase": "autopilot-20260323-143015",
+  "customStoppingCriteria": [],
+  "createdAt": "2026-03-23T14:30:15.000Z",
+  "completedAt": null,
+  "stoppingReason": null,
+  "totalRounds": 0,
+  "totalFindings": 0,
+  "rounds": []
+}
