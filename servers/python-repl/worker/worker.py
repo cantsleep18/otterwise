@@ -21,11 +21,13 @@ import socket
 import threading
 import signal
 import io
+import re
+import time
 import base64
 import traceback
 import resource
 import argparse
-import uuid
+from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
 # JSON-RPC 2.0 helpers
@@ -47,6 +49,85 @@ PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 INTERNAL_ERROR = -32603
+
+# ---------------------------------------------------------------------------
+# Marker parsing (structured output extraction)
+# ---------------------------------------------------------------------------
+
+# Matches lines like: [OBJECTIVE] Loading data...  or  [STAT:mean] 0.95
+MARKER_REGEX = re.compile(
+    r"^\s*\[([A-Z][A-Z0-9_-]*)(?::([^\]]+))?\]\s*(.*)$", re.MULTILINE
+)
+
+MARKER_CATEGORIES = {
+    # Research Process
+    "OBJECTIVE": "research_process",
+    "HYPOTHESIS": "research_process",
+    "EXPERIMENT": "research_process",
+    "OBSERVATION": "research_process",
+    "ANALYSIS": "research_process",
+    "CONCLUSION": "research_process",
+    # Data Operations
+    "DATA": "data_operations",
+    "SHAPE": "data_operations",
+    "DTYPE": "data_operations",
+    "RANGE": "data_operations",
+    "MISSING": "data_operations",
+    "MEMORY": "data_operations",
+    # Calculations
+    "CALC": "calculations",
+    "METRIC": "calculations",
+    "STAT": "calculations",
+    "CORR": "calculations",
+    # Artifacts
+    "PLOT": "artifacts",
+    "ARTIFACT": "artifacts",
+    "TABLE": "artifacts",
+    "FIGURE": "artifacts",
+    # Insights
+    "FINDING": "insights",
+    "INSIGHT": "insights",
+    "PATTERN": "insights",
+    # Workflow
+    "STEP": "workflow",
+    "STAGE": "workflow",
+    "CHECKPOINT": "workflow",
+    "CHECK": "workflow",
+    "INFO": "workflow",
+    "WARNING": "workflow",
+    "ERROR": "workflow",
+    "DEBUG": "workflow",
+    # Scientific
+    "CITATION": "scientific",
+    "LIMITATION": "scientific",
+    "NEXT_STEP": "scientific",
+    "DECISION": "scientific",
+}
+
+
+def parse_markers(text):
+    """Extract structured markers from output text.
+
+    Returns list of dicts with type, subtype, content, line_number, category, valid.
+    """
+    markers = []
+    for match in MARKER_REGEX.finditer(text):
+        raw_type = match.group(1)
+        marker_type = raw_type.replace("-", "_")
+        subtype = match.group(2)  # May be None
+        content = match.group(3).strip()
+        line_number = text[: match.start()].count("\n") + 1
+        category = MARKER_CATEGORIES.get(marker_type, "unknown")
+        valid = marker_type in MARKER_CATEGORIES
+        markers.append({
+            "type": marker_type,
+            "subtype": subtype,
+            "content": content,
+            "line_number": line_number,
+            "category": category,
+            "valid": valid,
+        })
+    return markers
 
 # ---------------------------------------------------------------------------
 # Bounded output capture
@@ -100,6 +181,7 @@ class ExecutionEngine:
         self._globals = {"__builtins__": __builtins__, "__name__": "__main__"}
         self._lock = threading.Lock()
         self._interrupted = False
+        self._execution_count = 0
         self._init_matplotlib()
 
     def _init_matplotlib(self):
@@ -111,13 +193,18 @@ class ExecutionEngine:
             pass
 
     def execute(self, code, timeout=30):
-        """Execute code, return dict with stdout, stderr, success, figures."""
+        """Execute code, return dict with stdout, stderr, success, figures, timing, markers."""
         out_buf = BoundedStringIO()
         err_buf = BoundedStringIO()
         success = True
         error_detail = None
 
+        started_at = datetime.now(timezone.utc).isoformat()
+        start_time = time.monotonic()
+
         with self._lock:
+            self._execution_count += 1
+            execution_count = self._execution_count
             self._interrupted = False
             old_stdout, old_stderr = sys.stdout, sys.stderr
             sys.stdout, sys.stderr = out_buf, err_buf
@@ -153,14 +240,23 @@ class ExecutionEngine:
                     signal.alarm(0)
                 sys.stdout, sys.stderr = old_stdout, old_stderr
 
+        duration_ms = round((time.monotonic() - start_time) * 1000, 2)
         figures = self._capture_figures()
+        stdout_text = out_buf.getvalue()
+        markers = parse_markers(stdout_text)
 
         return {
             "success": success,
-            "stdout": out_buf.getvalue(),
+            "stdout": stdout_text,
             "stderr": err_buf.getvalue(),
             "figures": figures,
             "error_detail": error_detail,
+            "markers": markers,
+            "timing": {
+                "started_at": started_at,
+                "duration_ms": duration_ms,
+            },
+            "execution_count": execution_count,
         }
 
     def interrupt(self):
@@ -168,9 +264,10 @@ class ExecutionEngine:
         self._interrupted = True
 
     def reset(self):
-        """Clear the execution namespace."""
+        """Clear the execution namespace and reset counter."""
         with self._lock:
             self._globals = {"__builtins__": __builtins__, "__name__": "__main__"}
+            self._execution_count = 0
             self._init_matplotlib()
 
     def get_state(self):
@@ -282,9 +379,7 @@ def handle_client(conn, engine, shutdown_event):
                 if method == "execute":
                     code = params.get("code", "")
                     timeout = params.get("timeout", 30)
-                    marker = f"EXEC_{uuid.uuid4().hex[:8]}"
                     result = engine.execute(code, timeout=timeout)
-                    result["marker"] = marker
                     send(_ok(req_id, result))
 
                 elif method == "interrupt":
@@ -384,6 +479,23 @@ def run_server(sock_path=None, port=None, ready_file=None, parent_pid=None):
         server_sock.listen(2)
         server_sock.settimeout(1.0)  # Allow periodic shutdown checks
 
+        # Verify socket file exists on disk before proceeding (defense-in-depth)
+        if sock_path and not os.path.exists(sock_path):
+            print(f"ERROR: Socket file not found after bind: {sock_path}", file=sys.stderr)
+            sys.exit(1)
+
+        # Write bridge_meta.json (matches BridgeMeta type in types.ts)
+        bridge_meta = {
+            "pid": os.getpid(),
+            "socketPath": sock_path or f"127.0.0.1:{server_sock.getsockname()[1]}",
+            "startTime": int(time.time() * 1000),  # epoch ms, matching JS Date.now()
+            "pythonVersion": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        }
+        meta_dir = os.path.dirname(sock_path) if sock_path else "."
+        meta_path = os.path.join(meta_dir, "bridge_meta.json")
+        with open(meta_path, "w") as f:
+            json.dump(bridge_meta, f)
+
         # Write ready file
         if ready_file:
             try:
@@ -425,6 +537,13 @@ def run_server(sock_path=None, port=None, ready_file=None, parent_pid=None):
             try:
                 os.unlink(sock_path)
             except FileNotFoundError:
+                pass
+        # Clean up bridge_meta.json
+        if sock_path:
+            try:
+                meta_dir = os.path.dirname(sock_path)
+                os.unlink(os.path.join(meta_dir, "bridge_meta.json"))
+            except (FileNotFoundError, OSError):
                 pass
         # Clean up ready file
         if ready_file:

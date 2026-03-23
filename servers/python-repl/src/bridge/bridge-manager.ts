@@ -28,8 +28,12 @@ import type {
 
 export type { ExecuteResponse, StateResponse, InterruptResponse, ResetResponse };
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const WORKER_PATH = join(__dirname, "../../worker/worker.py");
+const __curDir = dirname(fileURLToPath(import.meta.url));
+// In dev (src/bridge/), go up 2 levels; in bundled CJS (dist/), go up 1 level
+const PACKAGE_ROOT = __curDir.endsWith("bridge")
+  ? join(__curDir, "../..")
+  : join(__curDir, "..");
+const WORKER_PATH = join(PACKAGE_ROOT, "worker/worker.py");
 
 const READY_TIMEOUT_MS = 30_000;
 const SIGINT_TIMEOUT_MS = 5_000;

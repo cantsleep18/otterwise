@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "python-repl": {
-      "command": "npx",
-      "args": ["tsx", "servers/python-repl/src/index.ts"],
-      "cwd": "${CLAUDE_PLUGIN_ROOT}"
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/python-repl/dist/mcp-server.cjs"]
     }
   }
 }
