@@ -3,7 +3,7 @@
     "python-repl": {
       "command": "npx",
       "args": ["tsx", "servers/python-repl/src/index.ts"],
-      "cwd": "/mnt/c/Allround/otterwise"
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }
 }

@@ -1,11 +1,4 @@
 {
-  "mcpServers": {
-    "python-repl": {
-      "command": "npx",
-      "args": ["tsx", "servers/python-repl/src/index.ts"],
-      "cwd": "/mnt/c/Allround/otterwise"
-    }
-  },
   "permissions": {
     "allow": [
       "mcp__python-repl__execute_python",

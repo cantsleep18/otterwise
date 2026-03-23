@@ -1,7 +1,15 @@
 {
   "name": "otterwise",
   "version": "1.0.0",
-  "description": "Otterwise - compound research platform with autonomous data-driven research and graph-based exploration",
+  "description": "Autonomous compound research platform — spawns agent teams to crack open your datasets with Jupyter notebooks and a graph of discoveries",
+  "author": {
+    "name": "cantsleep18",
+    "url": "https://github.com/cantsleep18"
+  },
+  "repository": "https://github.com/cantsleep18/otterwise",
+  "homepage": "https://github.com/cantsleep18/otterwise",
+  "license": "MIT",
+  "keywords": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"],
   "agents": ["agents/research-lead.md"],
   "skills": [
     "skills/research/SKILL.md",

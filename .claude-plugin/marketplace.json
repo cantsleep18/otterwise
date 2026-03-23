@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "plugins": [
+    {
+      "name": "otterwise",
+      "version": "1.0.0",
+      "description": "Autonomous compound research platform — spawns agent teams to crack open your datasets with Jupyter notebooks and a graph of discoveries",
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/cantsleep18/otterwise",
+      "tags": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"],
+      "owner": {
+        "name": "cantsleep18",
+        "url": "https://github.com/cantsleep18"
+      }
+    }
+  ]
+}
