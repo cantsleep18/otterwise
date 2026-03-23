@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type {
   Notebook,
@@ -8,6 +8,8 @@ import type {
   StreamOutput,
   DisplayDataOutput,
 } from "./types.js";
+
+const cache = new Map<string, Notebook>();
 
 export function createNotebook(title: string, dataset?: string): Notebook {
   return {
@@ -60,20 +62,29 @@ export function createDisplayDataOutput(
   };
 }
 
-export function readNotebook(path: string): Notebook {
-  return JSON.parse(readFileSync(path, "utf-8"));
+export async function readNotebook(path: string): Promise<Notebook> {
+  const cached = cache.get(path);
+  if (cached) return cached;
+  const nb: Notebook = JSON.parse(await readFile(path, "utf-8"));
+  cache.set(path, nb);
+  return nb;
 }
 
-export function writeNotebook(path: string, notebook: Notebook): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(notebook, null, 2));
+export async function writeNotebook(path: string, notebook: Notebook): Promise<void> {
+  cache.set(path, notebook);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, JSON.stringify(notebook, null, 2));
 }
 
-export function appendCell(
+export async function appendCell(
   path: string,
   cell: CodeCell | MarkdownCell,
-): void {
-  const nb = readNotebook(path);
+): Promise<void> {
+  const nb = await readNotebook(path);
   nb.cells.push(cell);
-  writeNotebook(path, nb);
+  await writeNotebook(path, nb);
+}
+
+export function flushAll(): void {
+  cache.clear();
 }

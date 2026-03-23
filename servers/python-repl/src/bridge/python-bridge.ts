@@ -77,7 +77,13 @@ export class PythonBridge {
   shutdown(): void {
     clearPending();
     if (this.process && !this.process.killed) {
-      this.process.kill("SIGTERM");
+      const proc = this.process;
+      proc.kill("SIGTERM");
+      setTimeout(() => {
+        if (!proc.killed) {
+          proc.kill("SIGKILL");
+        }
+      }, 5000);
       this.process = null;
     }
   }

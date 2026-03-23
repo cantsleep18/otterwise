@@ -27,4 +27,4 @@ The user should provide:
    - This will be the root node (parent: null)
    - The lead will create an Agent Team for parallel analysis
 5. Report results to the user when complete
-6. Mention that the dashboard is available: `cd otterwise/dashboard && npm install && npm run dev`
+6. Research data is saved in `.otterwise/` directory. Use `/otterwise:status` to view progress.

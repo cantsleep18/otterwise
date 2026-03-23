@@ -3,7 +3,14 @@ Reads JSON-line commands from stdin, executes in IPython, returns results on std
 import sys
 import json
 import io
+import re
 import base64
+import signal
+
+def handle_sigterm(signum, frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_sigterm)
 
 _ipc_out = sys.stdout
 
@@ -107,6 +114,8 @@ for line in sys.stdin:
         else:
             send_response({"id": msg.get("id", ""), "type": "error", "message": f"Unknown type: {msg['type']}"})
     except json.JSONDecodeError as e:
-        send_response({"id": "", "type": "error", "message": f"Invalid JSON: {e}"})
+        id_match = re.search(r'"id"\s*:\s*"([^"]*)"', line)
+        error_id = id_match.group(1) if id_match else ""
+        send_response({"id": error_id, "type": "error", "message": f"Invalid JSON: {e}"})
     except Exception as e:
         send_response({"id": msg.get("id", ""), "type": "error", "message": f"Worker error: {e}"})

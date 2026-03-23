@@ -9,10 +9,12 @@ type PendingRequest = {
   resolve: (response: WorkerResponse) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
+  gen: number;
 };
 
 const pending = new Map<string, PendingRequest>();
 
+let generation = 0;
 let initialized = false;
 
 /**
@@ -22,6 +24,7 @@ let initialized = false;
 export function attachResponseListener(proc: ChildProcess): void {
   if (!proc.stdout) throw new Error("Process stdout is not available");
 
+  const myGen = ++generation;
   initialized = true;
 
   const rl = createInterface({ input: proc.stdout });
@@ -30,8 +33,8 @@ export function attachResponseListener(proc: ChildProcess): void {
     let parsed: WorkerResponse;
     try {
       parsed = JSON.parse(line);
-    } catch {
-      // Not JSON — ignore (shouldn't happen since worker uses stdout for IPC only)
+    } catch (err) {
+      process.stderr.write(`[ipc] Failed to parse worker response as JSON: ${err instanceof Error ? err.message : err} | raw: ${line}\n`);
       return;
     }
 
@@ -40,17 +43,25 @@ export function attachResponseListener(proc: ChildProcess): void {
       clearTimeout(entry.timer);
       pending.delete(parsed.id);
       entry.resolve(parsed);
+    } else {
+      process.stderr.write(`[ipc] Received response with no matching pending request (id=${parsed.id})\n`);
     }
   });
 
   rl.on("close", () => {
-    // Process exited — reject all pending requests
+    // Only reject requests belonging to this process generation.
+    // If a new process has already been spawned (generation advanced),
+    // its requests must not be rejected by this stale close event.
     for (const [id, entry] of pending) {
-      clearTimeout(entry.timer);
-      pending.delete(id);
-      entry.reject(new Error("Python process exited unexpectedly"));
+      if (entry.gen === myGen) {
+        clearTimeout(entry.timer);
+        pending.delete(id);
+        entry.reject(new Error("Python process exited unexpectedly"));
+      }
     }
-    initialized = false;
+    if (generation === myGen) {
+      initialized = false;
+    }
   });
 }
 
@@ -75,7 +86,7 @@ export function sendRequest(
       reject(new Error(`Request ${id} timed out after ${timeout}ms`));
     }, timeout);
 
-    pending.set(id, { resolve, reject, timer });
+    pending.set(id, { resolve, reject, timer, gen: generation });
 
     proc.stdin!.write(JSON.stringify(fullRequest) + "\n", (err) => {
       if (err) {

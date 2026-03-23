@@ -3,37 +3,48 @@ import { createNotebook, createMarkdownCell, createCodeCell, createStreamOutput,
 import type { CellOutput } from "../notebook/types.js";
 
 export async function startNotebook(bridge: PythonBridge, path: string, title: string, datasetPath: string): Promise<string> {
-  // Create notebook with title cell
-  const nb = createNotebook(title, datasetPath);
-  nb.cells.push(createMarkdownCell(`# ${title}`));
+  if (!path.endsWith('.ipynb')) {
+    return JSON.stringify({ success: false, error: "Notebook path must end with .ipynb" });
+  }
+  if (path.includes('..')) {
+    return JSON.stringify({ success: false, error: "Path traversal not allowed" });
+  }
 
-  // Setup code
-  const setupCode = [
-    "import pandas as pd",
-    "import numpy as np",
-    "",
-    `df = pd.read_csv(${JSON.stringify(datasetPath)})`,
-    "print(f'Dataset loaded: {df.shape[0]} rows x {df.shape[1]} columns')",
-    "df.head()",
-  ].join("\n");
+  try {
+    // Create notebook with title cell
+    const nb = createNotebook(title, datasetPath);
+    nb.cells.push(createMarkdownCell(`# ${title}`));
 
-  // Execute setup in Python
-  const result = await bridge.execute(setupCode);
+    // Setup code
+    const setupCode = [
+      "import pandas as pd",
+      "import numpy as np",
+      "",
+      `df = pd.read_csv(${JSON.stringify(datasetPath)})`,
+      "print(f'Dataset loaded: {df.shape[0]} rows x {df.shape[1]} columns')",
+      "df.head()",
+    ].join("\n");
 
-  // Build outputs for setup cell
-  const outputs: CellOutput[] = [];
-  if (result.stdout) outputs.push(createStreamOutput("stdout", result.stdout));
-  if (result.stderr) outputs.push(createStreamOutput("stderr", result.stderr));
+    // Execute setup in Python
+    const result = await bridge.execute(setupCode);
 
-  nb.cells.push(createCodeCell(setupCode, outputs));
+    // Build outputs for setup cell
+    const outputs: CellOutput[] = [];
+    if (result.stdout) outputs.push(createStreamOutput("stdout", result.stdout));
+    if (result.stderr) outputs.push(createStreamOutput("stderr", result.stderr));
 
-  // Write notebook
-  writeNotebook(path, nb);
+    nb.cells.push(createCodeCell(setupCode, outputs));
 
-  return JSON.stringify({
-    success: true,
-    notebook_path: path,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  });
+    // Write notebook
+    await writeNotebook(path, nb);
+
+    return JSON.stringify({
+      success: true,
+      notebook_path: path,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
+  } catch (error) {
+    return JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) });
+  }
 }

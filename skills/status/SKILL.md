@@ -30,4 +30,4 @@ Legend: ● completed  ○ in-progress  ◌ pending  ✗ dead-end
    - Total findings across all nodes
    - Dataset info from config.json
 
-5. Mention Otterwise dashboard: "For interactive visualization, run: cd otterwise/dashboard && npm run dev"
+5. Mention that `/otterwise:research` can be used to start a new research session if none exists.

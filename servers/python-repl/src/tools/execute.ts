@@ -26,9 +26,9 @@ export async function executePython(
   // Append to notebook
   try {
     const cell = createCodeCell(code, outputs);
-    const nb = readNotebook(notebookPath);
+    const nb = await readNotebook(notebookPath);
     nb.cells.push(cell);
-    writeNotebook(notebookPath, nb);
+    await writeNotebook(notebookPath, nb);
   } catch {
     // Don't fail the tool if notebook write fails
   }

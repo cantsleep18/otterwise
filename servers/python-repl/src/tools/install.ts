@@ -20,7 +20,7 @@ export async function installPackage(packageName: string): Promise<string> {
 
   try {
     const { stdout, stderr } = await execFileAsync(
-      "python3", ["-m", "pip", "install", packageName],
+      "python3", ["-m", "pip", "install", normalized],
       { timeout: 120_000 }
     );
     return JSON.stringify({ success: true, stdout, stderr });

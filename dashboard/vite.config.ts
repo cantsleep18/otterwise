@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 
 function otterwiseApiPlugin(): Plugin {
-  const otterwiseDir = path.resolve(__dirname, '../../.otterwise');
+  const otterwiseDir = path.resolve(__dirname, '../.otterwise');
 
   return {
     name: 'otterwise-api',
