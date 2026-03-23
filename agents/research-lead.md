@@ -49,20 +49,53 @@ Create 3-5 sets of objective bullet points, one per teammate. Each set should:
 - Be independent enough for parallel execution
 
 ### 5. Create Agent Team
-Use TeamCreate to create a research team, then spawn teammates via Agent tool.
 
 IMPORTANT: Do NOT pre-define teammate agents. Create them dynamically via Agent Teams.
 
-Each teammate's prompt MUST include:
-- Their assigned objective bullet points
-- The dataset path from config.json
-- Instruction to decompose objectives into executable analysis steps
-- Instruction to use the Python REPL MCP server tools:
-  - `start_notebook` to create their notebook
-  - `execute_python` for cell-by-cell analysis
-  - `get_kernel_state` to check variable state
-- Instruction to write `summary.md` when done (format below)
-- The working directory path for their output
+Follow these steps exactly:
+
+#### 5a. Create the team
+Use TeamCreate with a descriptive team_name based on the research session:
+```
+team_name: "research-{YYYYMMDD_HHMMSS}-{short-topic}"
+```
+
+#### 5b. Create tasks for tracking
+Use TaskCreate to create one task per teammate objective set. Each task should:
+- Have a descriptive subject summarizing the teammate's objectives
+- Be assigned to the teammate name (e.g., `researcher-1`, `researcher-2`)
+- Include the full objective bullet points in the description
+
+#### 5c. Spawn ALL teammates in a SINGLE message
+You MUST spawn all teammates in one message using multiple parallel Agent tool calls. This ensures they run concurrently.
+
+For each teammate, use the Agent tool with these exact parameters:
+- `subagent_type`: `"general-purpose"` (NOT "Explore" — teammates need Write + MCP tools)
+- `team_name`: the team name from step 5a
+- `name`: `"researcher-N"` (e.g., `researcher-1`, `researcher-2`, etc.)
+- `mode`: `"bypassPermissions"`
+- `run_in_background`: `true`
+
+Each teammate's `prompt` MUST include ALL of the following:
+1. **Objectives**: Their assigned objective bullet points from step 4
+2. **Dataset path**: The full path to the dataset file from config.json
+3. **Task ID**: Their task ID from step 5b, with instruction to mark it completed when done via TaskUpdate
+4. **Team name**: The team name so they can use SendMessage to communicate
+5. **MCP tool usage**: Explicit instructions to use the Python REPL MCP server:
+   - Call `mcp__python-repl__start_notebook` to create their notebook
+   - Call `mcp__python-repl__execute_python` for cell-by-cell analysis
+   - Call `mcp__python-repl__get_kernel_state` to check variable state
+   - Call `mcp__python-repl__install_package` if additional packages are needed
+6. **Output directory**: The full path to their output folder (e.g., `.otterwise/{session-id}/teammate-N/`)
+7. **Summary format**: Instruct them to write `summary.md` in their output directory using the Teammate Summary Format defined below
+
+#### 5d. Monitor progress
+Poll TaskList periodically until ALL teammate tasks show status `completed`.
+- If a task is stuck, use TaskGet to check for blockers
+- If a teammate reports issues via SendMessage, provide guidance
+
+#### 5e. Clean up
+After collecting all results in step 6, use TeamDelete to remove the research team.
 
 ### 6. Collect Results
 After all teammates complete:

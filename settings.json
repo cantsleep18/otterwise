@@ -8,7 +8,14 @@
       "mcp__python-repl__interrupt_execution",
       "mcp__python-repl__reset_kernel",
       "Bash(python*)",
-      "Bash(pip*)"
+      "Bash(pip*)",
+      "TeamCreate",
+      "TeamDelete",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "SendMessage",
+      "Agent"
     ]
   }
 }
