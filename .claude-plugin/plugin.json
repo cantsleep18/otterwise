@@ -1,14 +1,12 @@
 {
   "name": "otterwise",
-  "version": "1.0.0",
-  "description": "Autonomous compound research platform — spawns agent teams to crack open your datasets with Jupyter notebooks and a graph of discoveries",
+  "description": "Autonomous compound research platform — spawns agent teams to analyze datasets with Python notebooks and a graph of discoveries",
+  "version": "1.1.0",
   "author": {
     "name": "cantsleep18"
   },
   "repository": "https://github.com/cantsleep18/otterwise",
   "homepage": "https://github.com/cantsleep18/otterwise",
   "license": "MIT",
-  "keywords": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"],
-  "skills": "./skills/",
-  "mcpServers": "./.mcp.json"
+  "keywords": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"]
 }

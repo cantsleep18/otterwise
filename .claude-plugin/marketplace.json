@@ -1,18 +1,19 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "otterwise",
   "owner": {
-    "name": "cantsleep18",
-    "url": "https://github.com/cantsleep18"
+    "name": "cantsleep18"
+  },
+  "metadata": {
+    "description": "Autonomous compound research platform for Claude Code",
+    "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "otterwise",
-      "version": "1.0.0",
-      "description": "Autonomous compound research platform — spawns agent teams to crack open your datasets with Jupyter notebooks and a graph of discoveries",
       "source": "./",
+      "description": "Autonomous compound research platform — spawns agent teams to analyze datasets with Python notebooks and a graph of discoveries",
+      "version": "1.1.0",
       "category": "productivity",
-      "homepage": "https://github.com/cantsleep18/otterwise",
       "tags": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"]
     }
   ]
