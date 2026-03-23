@@ -1,106 +1,125 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/Claude_Code-Extension-blueviolet?style=for-the-badge" alt="Claude Code Extension" />
+  <img src="https://img.shields.io/badge/Python-stdlib_only-green?style=for-the-badge&logo=python" alt="Zero pip install" />
+  <img src="https://img.shields.io/badge/Tests-78_passing-brightgreen?style=for-the-badge" alt="78 tests passing" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT License" />
+</p>
+
 # Otterwise
 
-> Autonomous compound research platform for Claude Code
+> **Autonomous compound research platform for Claude Code**
 
 Like an otter using tools to crack open shellfish, Otterwise autonomously cracks open your datasets -- spawning research teams, producing Jupyter notebooks, and building an ever-expanding graph of discoveries.
 
-## Features
+**Zero setup. Zero pip install. Just plug in and research.**
 
-- **Autonomous Research** -- Give it a dataset and goals; it designs and executes multi-agent analysis
-- **Graph-Based Expansion** -- Research grows as a DAG, not linearly. Each node branches into new directions
-- **Jupyter Notebooks** -- Every analysis produces reproducible `.ipynb` notebooks with inline figures
-- **Interactive Dashboard** -- Real-time force-graph visualization of your research graph
-- **Agent Teams** -- Parallel analysis by dynamically created teammate agents
-- **Quality Hooks** -- Automated validation ensures every teammate produces a well-structured summary
+---
+
+## Highlights
+
+| | |
+|---|---|
+| **Autonomous Research** | Give it a dataset and goals; it designs and executes multi-agent analysis |
+| **Graph-Based Expansion** | Research grows as a DAG, not linearly -- each node branches into new directions |
+| **Jupyter Notebooks** | Every analysis produces reproducible `.ipynb` notebooks with inline figures |
+| **Agent Teams** | Parallel analysis by dynamically created teammate agents |
+| **6 MCP Tools** | execute, notebook, state, install, interrupt, reset |
+| **Zero Dependencies** | Python worker uses only stdlib -- no `pip install` needed |
+
+---
 
 ## Quick Start
 
-1. Install Otterwise as a Claude Code extension:
+```bash
+# 1. Install as Claude Code extension
+claude extension add /path/to/otterwise
 
-   ```bash
-   claude extension add /path/to/otterwise
-   ```
+# 2. Start researching (in any project)
+/otterwise:research
+```
 
-2. Point it at a dataset and start researching:
+You'll be prompted for:
+- **Dataset** -- path to CSV, Excel, Parquet, etc.
+- **Goals** -- research questions (optional; defaults to general profiling)
 
-   ```
-   /otterwise:research
-   ```
+Otterwise creates a `.otterwise/` directory, spawns a research lead agent, and kicks off parallel analysis.
 
-   You will be prompted for:
-   - Path to a dataset file (CSV, Excel, Parquet, etc.)
-   - Research goals or questions (optional -- defaults to general profiling)
-
-3. Otterwise creates a `.otterwise/` directory, spawns a research lead agent, and kicks off parallel analysis.
+---
 
 ## Architecture
 
 ```
-Claude Code ──stdio──▶ TypeScript MCP Server ──Unix socket──▶ Python Worker
-                       (Node.js)                               (exec())
-                       ├── 6 MCP tools                         ├── persistent namespace
-                       ├── notebook JSON                       ├── matplotlib capture
-                       └── JSON-RPC 2.0 IPC                    └── variable introspection
+                    ┌─────────────────────────────────┐
+                    │         Claude Code CLI          │
+                    └──────────┬──────────────────────┘
+                               │ stdio (MCP protocol)
+                    ┌──────────▼──────────────────────┐
+                    │    TypeScript MCP Server         │
+                    │    ├── 6 MCP tools               │
+                    │    ├── Jupyter notebook manager   │
+                    │    ├── Session lock + paths       │
+                    │    └── Socket client (JSON-RPC)   │
+                    └──────────┬──────────────────────┘
+                               │ Unix domain socket
+                               │ (JSON-RPC 2.0)
+                    ┌──────────▼──────────────────────┐
+                    │    Python Worker (stdlib only)    │
+                    │    ├── exec() persistent namespace│
+                    │    ├── matplotlib figure capture  │
+                    │    ├── SIGTERM graceful shutdown   │
+                    │    └── Parent PID monitoring       │
+                    └─────────────────────────────────┘
 ```
 
-The MCP server is written in TypeScript and communicates with Claude Code over stdio. It spawns a Python child process that runs code via `exec()` in a persistent namespace, communicating over Unix domain sockets with JSON-RPC 2.0. No Python package installation is required -- the worker uses only the standard library plus matplotlib.
+**Key design choices:**
+- **No IPython, no pip** -- worker uses `exec()` with Python stdlib only
+- **Unix sockets** -- secure IPC with file permissions, not stdin/stdout
+- **JSON-RPC 2.0** -- standard protocol with proper error codes
+- **Session locking** -- prevents concurrent execution conflicts
+- **Auto-respawn** -- worker crashes are recovered transparently
+
+---
 
 ## How It Works
 
 ```
-User
- |
- |  /otterwise:research
- v
-Research Lead Agent
- |
- |  reads config + previous reports
- |  plans 3-5 parallel objectives
- v
-Agent Team (dynamic teammates)
- |  each teammate:
- |    - creates a Jupyter notebook via MCP server
- |    - executes cell-by-cell Python analysis
- |    - writes summary.md
- v
-Research Lead
- |  synthesizes findings into report.md
- |  identifies branches for future expansion
- v
-.otterwise/
-  config.json
-  YYYYMMDD_HHMMSS_hash_name/
-    report.md           <-- graph node (YAML frontmatter with parent/related IDs)
-    teammate-1/
-      notebook.ipynb
-      summary.md
-    teammate-2/
-      ...
+/otterwise:research
+        │
+        ▼
+  Research Lead Agent
+        │  reads config + prior reports
+        │  plans 3-5 parallel objectives
+        ▼
+  Agent Team (dynamic)
+        │  each teammate:
+        │    ├── creates Jupyter notebook
+        │    ├── executes Python analysis cell-by-cell
+        │    └── writes summary.md
+        ▼
+  Research Lead
+        │  synthesizes → report.md (YAML frontmatter DAG)
+        │  identifies branches for expansion
+        ▼
+  .otterwise/
+    config.json
+    20260320_143022_abc_profiling/
+      report.md          ← DAG node
+      teammate-1/
+        notebook.ipynb
+        summary.md
 ```
 
-Each `report.md` contains YAML frontmatter with `id`, `parent`, `related`, and `status` fields that define the research DAG. Running `/otterwise:continue` reads all existing reports and expands the graph into new directions.
+Each `report.md` has YAML frontmatter (`id`, `parent`, `related`, `status`) defining the research DAG. `/otterwise:continue` reads all reports and expands the graph.
 
-## Usage
+---
 
-Otterwise registers three slash commands in Claude Code:
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/otterwise:research` | Start a new autonomous research session on a dataset |
-| `/otterwise:continue` | Expand the research graph with new analysis directions |
-| `/otterwise:status` | Display the current research graph as a tree |
-
-### `/otterwise:research`
-
-Creates `.otterwise/config.json` with dataset path and goals, invokes the research lead, and produces the first set of notebooks and reports. This becomes the root node of the research DAG.
-
-### `/otterwise:continue`
-
-Reads all existing reports, identifies promising leads and gaps, and spawns a new round of analysis. Optionally specify a focus direction or a specific node to expand from.
-
-### `/otterwise:status`
-
-Displays a tree view of the research graph:
+| `/otterwise:research` | Start a new research session on a dataset |
+| `/otterwise:continue` | Expand the research graph into new directions |
+| `/otterwise:status` | Display the research graph as a tree |
 
 ```
 Research Graph:
@@ -112,34 +131,76 @@ Research Graph:
 \-- (no more nodes)
 ```
 
-## Dashboard
+---
 
-The interactive dashboard provides a force-graph visualization of your research and lets you browse reports and notebooks.
+## MCP Tools
 
-```bash
-cd dashboard
-npm install
-npm run dev
-```
+| Tool | Description |
+|------|-------------|
+| `execute_python` | Run code in persistent namespace; appends cell + output to notebook |
+| `start_notebook` | Create `.ipynb` and load dataset as `df` |
+| `get_kernel_state` | Return variable names, types, shapes, memory usage |
+| `install_package` | Install whitelisted data-science package (pandas, numpy, scipy, etc.) |
+| `interrupt_execution` | Send SIGINT to stop running code |
+| `reset_kernel` | Clear the Python namespace |
 
-Open http://localhost:5173 to view the dashboard. It polls the `.otterwise/` directory for report changes every 5 seconds.
-
-<!-- Screenshot placeholder: dashboard overview -->
-
-**Tech stack:** React 18, Vite, Tailwind CSS v4, react-force-graph-2d, gray-matter for frontmatter parsing.
+---
 
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- Node.js 20+ (for the MCP server and dashboard)
-- Python 3.11+ (no pip install needed)
+- Node.js 20+
+- Python 3.11+
 
-Analysis packages are installed on demand via the `install_package` tool:
-pandas, numpy, scipy, statsmodels, scikit-learn, matplotlib, seaborn
+**That's it.** No `pip install`. No virtual environment. The worker runs on Python stdlib alone. Data-science packages (pandas, numpy, matplotlib, etc.) are installed on-demand via the `install_package` tool.
+
+---
+
+## Project Structure
+
+```
+otterwise/
+  .claude-plugin/
+    plugin.json            Plugin manifest
+  agents/
+    research-lead.md       DAG-aware research orchestrator
+  hooks/
+    hooks.json             Quality validation hook
+  servers/
+    python-repl/
+      src/
+        index.ts           MCP server entry (stdio transport, 6 tools)
+        bridge/
+          python-bridge.ts Socket-based bridge with auto-respawn
+          socket-client.ts JSON-RPC 2.0 client over Unix sockets
+          session-lock.ts  File-based concurrency lock
+          paths.ts         Cross-platform socket path management
+          types.ts         JSON-RPC 2.0 type definitions
+        notebook/
+          format.ts        Jupyter .ipynb read/write with cache
+          types.ts         Notebook type definitions
+        tools/
+          execute.ts       execute_python implementation
+          notebook.ts      start_notebook implementation
+          state.ts         get_kernel_state implementation
+          install.ts       install_package implementation
+          interrupt.ts     interrupt_execution implementation
+          reset.ts         reset_kernel implementation
+      worker/
+        worker.py          Python exec() worker (socket server)
+      package.json
+  skills/
+    research/              /otterwise:research
+    continue/              /otterwise:continue
+    status/                /otterwise:status
+  settings.json            Claude Code permissions
+```
+
+---
 
 ## Configuration
 
-Otterwise is configured via `settings.json` at the project root, which grants permissions for the MCP server tools:
+Permissions are granted via `settings.json`:
 
 ```json
 {
@@ -156,58 +217,17 @@ Otterwise is configured via `settings.json` at the project root, which grants pe
 }
 ```
 
-Research session configuration is stored in `.otterwise/config.json`, created automatically by `/otterwise:research`:
+Research sessions store state in `.otterwise/config.json`:
 
 ```json
 {
-  "dataset": "/absolute/path/to/data.csv",
-  "goals": ["Identify key drivers of churn", "Find seasonal patterns"],
+  "dataset": "/path/to/data.csv",
+  "goals": ["Identify churn drivers", "Find seasonal patterns"],
   "created": "2026-03-20T10:00:00Z"
 }
 ```
 
-## Project Structure
-
-```
-otterwise/
-  agents/
-    research-lead.md     Research lead agent (DAG-aware research orchestrator)
-  dashboard/             React + Vite interactive dashboard
-    src/
-      components/        ResearchGraph, Sidebar, ReportPanel, NotebookPreview
-      lib/               Report parsing and graph building
-      types.ts           Shared TypeScript types
-  hooks/
-    hooks.json           Quality validation hook for teammate summaries
-  servers/
-    python-repl/         TypeScript MCP server (Node.js)
-      src/
-        index.ts         Server entry point (stdio transport)
-        bridge/          Unix socket client + session management
-        notebook/        Jupyter notebook JSON formatting
-        tools/           MCP tool implementations (6 tools)
-      worker/
-        worker.py        Python exec() worker (Unix socket server)
-      package.json
-  skills/
-    research/            /otterwise:research skill
-    continue/            /otterwise:continue skill
-    status/              /otterwise:status skill
-  settings.json          Claude Code permission configuration
-```
-
-### MCP Server Tools
-
-The TypeScript MCP server (`servers/python-repl/`) exposes six tools over stdio:
-
-| Tool | Description |
-|------|-------------|
-| `execute_python` | Run code in a persistent Python namespace; appends cell and output to a notebook |
-| `start_notebook` | Create a new `.ipynb` file and initialize the namespace with dataset loaded as `df` |
-| `get_kernel_state` | Return current namespace variables with types, shapes, and dtypes |
-| `install_package` | Install a whitelisted data-science package via pip |
-| `interrupt_execution` | Interrupt the currently running Python execution |
-| `reset_kernel` | Reset the Python namespace (clear all variables) |
+---
 
 ## Contributing
 
