@@ -6,7 +6,8 @@
   "skills": [
     "skills/research/SKILL.md",
     "skills/continue/SKILL.md",
-    "skills/status/SKILL.md"
+    "skills/status/SKILL.md",
+    "skills/ow-setup/SKILL.md"
   ],
   "hooks": "hooks/hooks.json",
   "mcpServers": ".mcp.json",
