@@ -17,13 +17,12 @@ Thanks for your interest in contributing! This guide covers development setup, t
 cd servers/python-repl
 npm install
 
-# Python worker dependencies
-pip install -r servers/requirements.txt
-
 # Dashboard
 cd dashboard
 npm install
 ```
+
+No Python pip install is needed -- the worker uses only the standard library. Analysis packages (pandas, numpy, etc.) are installed on demand via the `install_package` MCP tool.
 
 ## Running Locally
 
@@ -46,7 +45,7 @@ npm run preview
 
 ### MCP Server
 
-The MCP server is a TypeScript process that spawns a Python worker for code execution. It runs over stdio and is started automatically by Claude Code. To test manually:
+The MCP server is a TypeScript process that spawns a Python worker communicating over a Unix domain socket with JSON-RPC 2.0. It runs over stdio and is started automatically by Claude Code. To test manually:
 
 ```bash
 cd servers/python-repl
@@ -61,12 +60,14 @@ Install Otterwise as a Claude Code extension, then run `/otterwise:research` in 
 
 ### MCP Server
 
-Test the four MCP tools by starting the TypeScript server and sending JSON-RPC requests. Verify:
+Test the six MCP tools by starting the TypeScript server and sending JSON-RPC requests. Verify:
 
 - `start_notebook` creates a valid `.ipynb` file with setup cell and kernel output
 - `execute_python` appends cells and captures stdout, stderr, and base64-encoded figures
 - `get_kernel_state` returns correct variable metadata (type, shape, dtypes)
 - `install_package` accepts whitelisted packages and rejects everything else
+- `interrupt_execution` cancels a running execution
+- `reset_kernel` clears the Python namespace and returns a clean state
 
 ### Dashboard
 

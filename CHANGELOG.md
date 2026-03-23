@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Migrated MCP server from Python (FastMCP) to TypeScript (MCP SDK) with Python child_process worker
+- Replaced IPython kernel with plain Python `exec()` worker (zero pip install required)
+- Migrated IPC from stdin/stdout JSON-lines to Unix domain sockets with JSON-RPC 2.0
+- Added session locking and security hardening for the Python worker
+
+### Added
+
+- `interrupt_execution` tool to cancel long-running Python execution
+- `reset_kernel` tool to clear the Python namespace
 
 ## [0.1.0] - 2026-03-20
 

@@ -12,6 +12,8 @@
       "mcp__python-repl__start_notebook",
       "mcp__python-repl__get_kernel_state",
       "mcp__python-repl__install_package",
+      "mcp__python-repl__interrupt_execution",
+      "mcp__python-repl__reset_kernel",
       "Bash(python*)",
       "Bash(pip*)"
     ]

@@ -36,14 +36,14 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 ## Architecture
 
 ```
-Claude Code ──stdio──▶ TypeScript MCP Server ──child_process──▶ Python Worker
-                       (Node.js)                                 (IPython)
-                       ├── 4 MCP tools                           ├── persistent kernel
-                       ├── notebook JSON                         ├── matplotlib capture
-                       └── JSON-line IPC                         └── variable introspection
+Claude Code ──stdio──▶ TypeScript MCP Server ──Unix socket──▶ Python Worker
+                       (Node.js)                               (exec())
+                       ├── 6 MCP tools                         ├── persistent namespace
+                       ├── notebook JSON                       ├── matplotlib capture
+                       └── JSON-RPC 2.0 IPC                    └── variable introspection
 ```
 
-The MCP server is written in TypeScript and communicates with Claude Code over stdio. It spawns a Python child process running an IPython kernel for code execution, managing communication via JSON-line IPC.
+The MCP server is written in TypeScript and communicates with Claude Code over stdio. It spawns a Python child process that runs code via `exec()` in a persistent namespace, communicating over Unix domain sockets with JSON-RPC 2.0. No Python package installation is required -- the worker uses only the standard library plus matplotlib.
 
 ## How It Works
 
@@ -132,14 +132,10 @@ Open http://localhost:5173 to view the dashboard. It polls the `.otterwise/` dir
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
 - Node.js 20+ (for the MCP server and dashboard)
-- Python 3.11+ with pip (for the IPython worker)
+- Python 3.11+ (no pip install needed)
 
-### Python Dependencies
-
-The Python worker requires: `ipython`, `matplotlib`
-
-Analysis packages installed on demand via the `install_package` tool:
-pandas, numpy, scipy, statsmodels, scikit-learn, seaborn
+Analysis packages are installed on demand via the `install_package` tool:
+pandas, numpy, scipy, statsmodels, scikit-learn, matplotlib, seaborn
 
 ## Configuration
 
@@ -152,7 +148,9 @@ Otterwise is configured via `settings.json` at the project root, which grants pe
       "mcp__python-repl__execute_python",
       "mcp__python-repl__start_notebook",
       "mcp__python-repl__get_kernel_state",
-      "mcp__python-repl__install_package"
+      "mcp__python-repl__install_package",
+      "mcp__python-repl__interrupt_execution",
+      "mcp__python-repl__reset_kernel"
     ]
   }
 }
@@ -185,11 +183,12 @@ otterwise/
     python-repl/         TypeScript MCP server (Node.js)
       src/
         index.ts         Server entry point (stdio transport)
-        bridge/          Python child-process IPC layer
+        bridge/          Unix socket client + session management
         notebook/        Jupyter notebook JSON formatting
-        tools/           MCP tool implementations
+        tools/           MCP tool implementations (6 tools)
+      worker/
+        worker.py        Python exec() worker (Unix socket server)
       package.json
-    requirements.txt     Python worker dependencies (ipython, matplotlib)
   skills/
     research/            /otterwise:research skill
     continue/            /otterwise:continue skill
@@ -199,14 +198,16 @@ otterwise/
 
 ### MCP Server Tools
 
-The TypeScript MCP server (`servers/python-repl/`) exposes four tools over stdio:
+The TypeScript MCP server (`servers/python-repl/`) exposes six tools over stdio:
 
 | Tool | Description |
 |------|-------------|
-| `execute_python` | Run code in a persistent IPython kernel; appends cell and output to a notebook |
-| `start_notebook` | Create a new `.ipynb` file and initialize the kernel with dataset loaded as `df` |
-| `get_kernel_state` | Return current kernel variables with types, shapes, and dtypes |
+| `execute_python` | Run code in a persistent Python namespace; appends cell and output to a notebook |
+| `start_notebook` | Create a new `.ipynb` file and initialize the namespace with dataset loaded as `df` |
+| `get_kernel_state` | Return current namespace variables with types, shapes, and dtypes |
 | `install_package` | Install a whitelisted data-science package via pip |
+| `interrupt_execution` | Interrupt the currently running Python execution |
+| `reset_kernel` | Reset the Python namespace (clear all variables) |
 
 ## Contributing
 

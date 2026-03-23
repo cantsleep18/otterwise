@@ -6,6 +6,8 @@ import { executePython } from "./tools/execute.js";
 import { startNotebook } from "./tools/notebook.js";
 import { getKernelState } from "./tools/state.js";
 import { installPackage } from "./tools/install.js";
+import { interruptExecution } from "./tools/interrupt.js";
+import { resetKernel } from "./tools/reset.js";
 
 const server = new McpServer({
   name: "otterwise-python-repl",
@@ -17,7 +19,7 @@ const bridge = new PythonBridge();
 // Tool: execute_python
 server.tool(
   "execute_python",
-  "Execute Python code in a persistent IPython kernel. Returns JSON with stdout, stderr, figures, and success status.",
+  "Execute Python code in a persistent kernel. Returns JSON with stdout, stderr, figures, and success status.",
   {
     code: z.string().min(1).describe("Python code to execute"),
     notebook_path: z.string().min(1).describe("Path to .ipynb file to append results"),
@@ -77,15 +79,42 @@ server.tool(
   }
 );
 
+// Tool: interrupt_execution
+server.tool(
+  "interrupt_execution",
+  "Interrupt the currently running Python execution.",
+  {},
+  async () => {
+    try {
+      return { content: [{ type: "text" as const, text: await interruptExecution(bridge) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
+    }
+  }
+);
+
+// Tool: reset_kernel
+server.tool(
+  "reset_kernel",
+  "Reset the Python kernel namespace (clear all variables).",
+  {},
+  async () => {
+    try {
+      return { content: [{ type: "text" as const, text: await resetKernel(bridge) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
+    }
+  }
+);
+
 // Cleanup on exit
-process.on("SIGINT", () => {
-  bridge.shutdown();
+async function gracefulShutdown() {
+  await bridge.shutdown();
   process.exit(0);
-});
-process.on("SIGTERM", () => {
-  bridge.shutdown();
-  process.exit(0);
-});
+}
+
+process.on("SIGINT", () => { gracefulShutdown(); });
+process.on("SIGTERM", () => { gracefulShutdown(); });
 
 // Start server
 const transport = new StdioServerTransport();

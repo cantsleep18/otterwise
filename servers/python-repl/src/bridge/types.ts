@@ -1,40 +1,24 @@
-// Request types (TS → Python)
-export interface ExecuteRequest {
-  id: string;
-  type: "execute";
-  code: string;
-}
+// Method-specific result types (unwrapped from JSON-RPC envelope)
+// These represent the "result" field from JSON-RPC 2.0 responses.
 
-export interface GetStateRequest {
-  id: string;
-  type: "get_state";
-}
-
-export type WorkerRequest = ExecuteRequest | GetStateRequest;
-
-// Response types (Python → TS)
-export interface ExecuteResponse {
-  id: string;
-  type: "result";
+export interface ExecuteResult {
   success: boolean;
   stdout: string;
   stderr: string;
   figures: string[]; // base64 PNGs
 }
 
-export interface StateResponse {
-  id: string;
-  type: "state";
+export interface StateResult {
   variables: Record<string, VariableInfo>;
 }
 
-export interface ErrorResponse {
-  id: string;
-  type: "error";
-  message: string;
+export interface InterruptResult {
+  interrupted: boolean;
 }
 
-export type WorkerResponse = ExecuteResponse | StateResponse | ErrorResponse;
+export interface ResetResult {
+  reset: boolean;
+}
 
 export interface VariableInfo {
   type: string;
@@ -42,3 +26,9 @@ export interface VariableInfo {
   dtype?: string;
   dtypes?: Record<string, string>;
 }
+
+// Convenience aliases for bridge return types
+export type ExecuteResponse = ExecuteResult;
+export type StateResponse = StateResult;
+export type InterruptResponse = InterruptResult;
+export type ResetResponse = ResetResult;

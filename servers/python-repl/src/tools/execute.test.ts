@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { executePython } from "./execute.js";
 import { createNotebook, writeNotebook, readNotebook, flushAll } from "../notebook/format.js";
+import { mockBridgeWithExecute } from "../../tests/fixtures/mock-bridge.js";
 
 describe("executePython", () => {
   let tmpDir: string;
@@ -21,30 +22,15 @@ describe("executePython", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function mockBridge(response: {
-    success: boolean;
-    stdout: string;
-    stderr: string;
-    figures: string[];
-  }) {
-    return {
-      execute: vi.fn().mockResolvedValue({
-        id: "test-id",
-        type: "result",
-        ...response,
-      }),
-    } as any;
-  }
-
   it("returns JSON with execution results", async () => {
-    const bridge = mockBridge({
+    const bridge = mockBridgeWithExecute({
       success: true,
       stdout: "hello",
       stderr: "",
       figures: [],
     });
 
-    const raw = await executePython(bridge, "print('hello')", nbPath);
+    const raw = await executePython(bridge as any, "print('hello')", nbPath);
     const result = JSON.parse(raw);
 
     expect(result.success).toBe(true);
@@ -54,14 +40,14 @@ describe("executePython", () => {
   });
 
   it("appends code cell with outputs to notebook", async () => {
-    const bridge = mockBridge({
+    const bridge = mockBridgeWithExecute({
       success: true,
       stdout: "output line",
       stderr: "warn",
       figures: ["base64img"],
     });
 
-    await executePython(bridge, "code_here", nbPath);
+    await executePython(bridge as any, "code_here", nbPath);
 
     flushAll();
     const nb = await readNotebook(nbPath);
@@ -92,14 +78,14 @@ describe("executePython", () => {
   });
 
   it("skips empty stdout/stderr in outputs", async () => {
-    const bridge = mockBridge({
+    const bridge = mockBridgeWithExecute({
       success: true,
       stdout: "",
       stderr: "",
       figures: [],
     });
 
-    await executePython(bridge, "x = 1", nbPath);
+    await executePython(bridge as any, "x = 1", nbPath);
 
     flushAll();
     const nb = await readNotebook(nbPath);
@@ -109,7 +95,7 @@ describe("executePython", () => {
   });
 
   it("still returns result even if notebook write fails", async () => {
-    const bridge = mockBridge({
+    const bridge = mockBridgeWithExecute({
       success: false,
       stdout: "",
       stderr: "NameError",
@@ -118,7 +104,7 @@ describe("executePython", () => {
 
     // Use a path that doesn't exist as a notebook (readNotebook will fail)
     const badPath = join(tmpDir, "nonexistent", "missing.ipynb");
-    const raw = await executePython(bridge, "bad_code", badPath);
+    const raw = await executePython(bridge as any, "bad_code", badPath);
     const result = JSON.parse(raw);
 
     expect(result.success).toBe(false);
@@ -126,14 +112,14 @@ describe("executePython", () => {
   });
 
   it("passes code to bridge.execute", async () => {
-    const bridge = mockBridge({
+    const bridge = mockBridgeWithExecute({
       success: true,
       stdout: "",
       stderr: "",
       figures: [],
     });
 
-    await executePython(bridge, "import pandas", nbPath);
+    await executePython(bridge as any, "import pandas", nbPath);
     expect(bridge.execute).toHaveBeenCalledWith("import pandas");
   });
 });
