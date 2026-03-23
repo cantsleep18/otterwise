@@ -58,6 +58,17 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2 MB
 const RECONNECT_DELAY_MS = 500;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+// Timeout escalation: for long-running requests, escalate through warning
+// stages before hard timeout. Allows callers to get notified at each stage.
+const TIMEOUT_ESCALATION_STAGES = [
+  { fraction: 0.5, label: "warning" },
+  { fraction: 0.8, label: "critical" },
+  { fraction: 1.0, label: "timeout" },
+] as const;
+
+type TimeoutStage = (typeof TIMEOUT_ESCALATION_STAGES)[number]["label"];
+type TimeoutCallback = (stage: TimeoutStage, elapsed: number, total: number) => void;
+
 // ---------------------------------------------------------------------------
 // Pending request bookkeeping
 // ---------------------------------------------------------------------------
@@ -250,11 +261,18 @@ export async function connect(socketPath: string): Promise<void> {
 
 /**
  * Send a JSON-RPC 2.0 request and wait for the correlated response.
+ *
+ * @param method - The JSON-RPC method name.
+ * @param params - Optional parameters for the method.
+ * @param timeout - Hard timeout in milliseconds (default 60s).
+ * @param onTimeoutStage - Optional callback invoked at escalation stages
+ *   (50% = "warning", 80% = "critical", 100% = "timeout" which rejects).
  */
 export function sendRequest<T = unknown>(
   method: string,
   params?: Record<string, unknown>,
   timeout: number = DEFAULT_TIMEOUT_MS,
+  onTimeoutStage?: TimeoutCallback,
 ): Promise<T> {
   if (!socket || socket.destroyed) {
     return Promise.reject(
@@ -271,20 +289,51 @@ export function sendRequest<T = unknown>(
   };
 
   return new Promise<T>((resolve, reject) => {
+    const stageTimers: ReturnType<typeof setTimeout>[] = [];
+
+    // Set up escalation timers if callback provided
+    if (onTimeoutStage) {
+      for (const stage of TIMEOUT_ESCALATION_STAGES) {
+        if (stage.label === "timeout") continue; // handled by main timer
+        const delay = Math.floor(timeout * stage.fraction);
+        stageTimers.push(
+          setTimeout(() => {
+            onTimeoutStage(stage.label, delay, timeout);
+          }, delay),
+        );
+      }
+    }
+
     const timer = setTimeout(() => {
+      // Clear escalation timers
+      for (const t of stageTimers) clearTimeout(t);
       pending.delete(id);
+      if (onTimeoutStage) {
+        onTimeoutStage("timeout", timeout, timeout);
+      }
       reject(new SocketTimeoutError(id, timeout));
     }, timeout);
 
+    // Override resolve/reject to also clean up stage timers
+    const cleanupAndResolve = (value: unknown) => {
+      for (const t of stageTimers) clearTimeout(t);
+      resolve(value as T);
+    };
+    const cleanupAndReject = (error: Error) => {
+      for (const t of stageTimers) clearTimeout(t);
+      reject(error);
+    };
+
     pending.set(id, {
-      resolve: resolve as (value: unknown) => void,
-      reject,
+      resolve: cleanupAndResolve,
+      reject: cleanupAndReject,
       timer,
     });
 
     socket!.write(JSON.stringify(request) + "\n", "utf-8", (err) => {
       if (err) {
         clearTimeout(timer);
+        for (const t of stageTimers) clearTimeout(t);
         pending.delete(id);
         reject(new SocketConnectionError(`Failed to write to socket: ${err.message}`, err));
       }
@@ -314,4 +363,19 @@ export function disconnect(): void {
  */
 export function isConnected(): boolean {
   return socket !== null && !socket.destroyed;
+}
+
+/**
+ * Returns observability stats for the socket client.
+ */
+export function getStats(): {
+  pendingRequests: number;
+  connected: boolean;
+  reconnecting: boolean;
+} {
+  return {
+    pendingRequests: pending.size,
+    connected: isConnected(),
+    reconnecting,
+  };
 }

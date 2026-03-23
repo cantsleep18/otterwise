@@ -1,13 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { PythonBridge } from "./bridge/python-bridge.js";
-import { executePython } from "./tools/execute.js";
-import { startNotebook } from "./tools/notebook.js";
-import { getKernelState } from "./tools/state.js";
-import { installPackage } from "./tools/install.js";
-import { interruptExecution } from "./tools/interrupt.js";
-import { resetKernel } from "./tools/reset.js";
+import { BridgeManager as PythonBridge } from "./bridge/bridge-manager.js";
+import {
+  pythonReplSchema,
+  handlePythonRepl,
+} from "./tool.js";
 
 const server = new McpServer({
   name: "otterwise-python-repl",
@@ -16,95 +13,27 @@ const server = new McpServer({
 
 const bridge = new PythonBridge();
 
-// Tool: execute_python
+// Single unified tool
 server.tool(
-  "execute_python",
-  "Execute Python code in a persistent kernel. Returns JSON with stdout, stderr, figures, and success status.",
-  {
-    code: z.string().min(1).describe("Python code to execute"),
-    notebook_path: z.string().min(1).describe("Path to .ipynb file to append results"),
+  "python_repl",
+  "Python REPL with persistent kernel. Actions: execute, start_notebook, get_state, install_package, interrupt, reset.",
+  pythonReplSchema,
+  async (params) => {
+    try {
+      const text = await handlePythonRepl(bridge, params);
+      return { content: [{ type: "text" as const, text }] };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        }],
+      };
+    }
   },
-  async ({ code, notebook_path }) => {
-    try {
-      return { content: [{ type: "text" as const, text: await executePython(bridge, code, notebook_path) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
-    }
-  }
-);
-
-// Tool: start_notebook
-server.tool(
-  "start_notebook",
-  "Create a new Jupyter notebook and initialize with dataset loading.",
-  {
-    path: z.string().min(1).describe("Notebook file path"),
-    title: z.string().min(1).describe("Notebook title"),
-    dataset_path: z.string().min(1).describe("Path to CSV dataset"),
-  },
-  async ({ path, title, dataset_path }) => {
-    try {
-      return { content: [{ type: "text" as const, text: await startNotebook(bridge, path, title, dataset_path) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
-    }
-  }
-);
-
-// Tool: get_kernel_state
-server.tool(
-  "get_kernel_state",
-  "Return current kernel variables with types and shapes.",
-  {},
-  async () => {
-    try {
-      return { content: [{ type: "text" as const, text: await getKernelState(bridge) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
-    }
-  }
-);
-
-// Tool: install_package
-server.tool(
-  "install_package",
-  "Install a whitelisted data-science package via pip.",
-  { package: z.string().min(1).describe("Package name to install") },
-  async ({ package: pkg }) => {
-    try {
-      return { content: [{ type: "text" as const, text: await installPackage(pkg) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
-    }
-  }
-);
-
-// Tool: interrupt_execution
-server.tool(
-  "interrupt_execution",
-  "Interrupt the currently running Python execution.",
-  {},
-  async () => {
-    try {
-      return { content: [{ type: "text" as const, text: await interruptExecution(bridge) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
-    }
-  }
-);
-
-// Tool: reset_kernel
-server.tool(
-  "reset_kernel",
-  "Reset the Python kernel namespace (clear all variables).",
-  {},
-  async () => {
-    try {
-      return { content: [{ type: "text" as const, text: await resetKernel(bridge) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }) }] };
-    }
-  }
 );
 
 // Cleanup on exit
@@ -113,8 +42,12 @@ async function gracefulShutdown() {
   process.exit(0);
 }
 
-process.on("SIGINT", () => { gracefulShutdown(); });
-process.on("SIGTERM", () => { gracefulShutdown(); });
+process.on("SIGINT", () => {
+  gracefulShutdown();
+});
+process.on("SIGTERM", () => {
+  gracefulShutdown();
+});
 
 // Start server
 const transport = new StdioServerTransport();

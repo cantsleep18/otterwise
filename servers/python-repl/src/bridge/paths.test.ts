@@ -8,6 +8,7 @@ import {
   getSocketPath,
   getMetaPath,
   validatePath,
+  validateSessionId,
   ensureSessionDir,
   cleanup,
 } from "./paths.js";
@@ -64,6 +65,43 @@ describe("getMetaPath", () => {
     const sessionDir = getSessionDir("my-session");
     const metaPath = getMetaPath("my-session");
     expect(metaPath.startsWith(sessionDir)).toBe(true);
+  });
+});
+
+describe("validateSessionId", () => {
+  it("accepts valid session IDs", () => {
+    expect(validateSessionId("1234567890-abcdef01")).toBe(true);
+    expect(validateSessionId("test-session")).toBe(true);
+  });
+
+  it("rejects empty strings", () => {
+    expect(validateSessionId("")).toBe(false);
+  });
+
+  it("rejects null bytes", () => {
+    expect(validateSessionId("test\0session")).toBe(false);
+  });
+
+  it("rejects path separators", () => {
+    expect(validateSessionId("test/session")).toBe(false);
+    expect(validateSessionId("test\\session")).toBe(false);
+  });
+
+  it("rejects traversal sequences", () => {
+    expect(validateSessionId("..")).toBe(false);
+    expect(validateSessionId("test..session")).toBe(false);
+  });
+
+  it("rejects Windows reserved names", () => {
+    expect(validateSessionId("CON")).toBe(false);
+    expect(validateSessionId("NUL")).toBe(false);
+    expect(validateSessionId("COM1")).toBe(false);
+    expect(validateSessionId("LPT1")).toBe(false);
+  });
+
+  it("rejects control characters", () => {
+    expect(validateSessionId("test\x01session")).toBe(false);
+    expect(validateSessionId("test\x7fsession")).toBe(false);
   });
 });
 

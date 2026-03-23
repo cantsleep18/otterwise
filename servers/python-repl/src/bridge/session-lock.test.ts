@@ -22,13 +22,15 @@ describe("acquire / release", () => {
     expect(existsSync(lockPath)).toBe(true);
   });
 
-  it("lock file contains current PID and timestamp", async () => {
+  it("lock file contains current PID, timestamp, and processStartTime", async () => {
     await acquire(TEST_SESSION);
     const lockPath = join(getSessionDir(TEST_SESSION), "session.lock");
     const content = JSON.parse(await readFile(lockPath, "utf-8"));
     expect(content.pid).toBe(process.pid);
     expect(typeof content.timestamp).toBe("number");
     expect(content.timestamp).toBeLessThanOrEqual(Date.now());
+    expect(typeof content.processStartTime).toBe("number");
+    expect(content.processStartTime).toBeLessThanOrEqual(Date.now());
   });
 
   it("release removes the lock file", async () => {
@@ -54,7 +56,7 @@ describe("stale lock detection", () => {
     // Write a lock file with a PID that doesn't exist
     await ensureSessionDir(TEST_SESSION);
     const lockPath = join(getSessionDir(TEST_SESSION), "session.lock");
-    const staleLock = JSON.stringify({ pid: 999999, timestamp: Date.now() - 60000 });
+    const staleLock = JSON.stringify({ pid: 999999, timestamp: Date.now() - 60000, processStartTime: Date.now() - 120000 });
     await writeFile(lockPath, staleLock);
 
     // Should succeed because PID 999999 is not alive
@@ -81,7 +83,7 @@ describe("isLocked", () => {
   it("returns false for stale lock from dead process", async () => {
     await ensureSessionDir(TEST_SESSION);
     const lockPath = join(getSessionDir(TEST_SESSION), "session.lock");
-    await writeFile(lockPath, JSON.stringify({ pid: 999999, timestamp: Date.now() }));
+    await writeFile(lockPath, JSON.stringify({ pid: 999999, timestamp: Date.now(), processStartTime: Date.now() - 60000 }));
     expect(await isLocked(TEST_SESSION)).toBe(false);
   });
 });
@@ -102,7 +104,7 @@ describe("breakStaleLock", () => {
     await ensureSessionDir(TEST_SESSION);
     const lockPath = join(getSessionDir(TEST_SESSION), "session.lock");
     // Write a lock file with a very old timestamp
-    const oldLock = JSON.stringify({ pid: process.pid, timestamp: Date.now() - 10000 });
+    const oldLock = JSON.stringify({ pid: process.pid, timestamp: Date.now() - 10000, processStartTime: Date.now() - 10000 });
     await writeFile(lockPath, oldLock);
 
     expect(await breakStaleLock(TEST_SESSION, 5000)).toBe(true);

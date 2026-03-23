@@ -17,6 +17,8 @@ export function createMockBridge(overrides: {
       stdout: "",
       stderr: "",
       figures: [],
+      metrics: { duration_ms: 0, memory_rss_mb: 0, memory_vms_mb: 0, output_truncated: false },
+      error_detail: null,
     }),
     getState: overrides.getState ?? vi.fn().mockResolvedValue({
       variables: {},
@@ -35,6 +37,9 @@ export function mockBridgeWithExecute(response: {
   stdout: string;
   stderr: string;
   figures: string[];
+  metrics?: { duration_ms: number; memory_rss_mb: number; memory_vms_mb: number; output_truncated: boolean };
+  error_detail?: { type: string; message: string; traceback: string } | null;
+  marker?: string;
 }) {
   return createMockBridge({
     execute: vi.fn().mockResolvedValue(response),

@@ -81,11 +81,11 @@ Each teammate's `prompt` MUST include ALL of the following:
 2. **Dataset path**: The full path to the dataset file from config.json
 3. **Task ID**: Their task ID from step 5b, with instruction to mark it completed when done via TaskUpdate
 4. **Team name**: The team name so they can use SendMessage to communicate
-5. **MCP tool usage**: Explicit instructions to use the Python REPL MCP server:
-   - Call `mcp__python-repl__start_notebook` to create their notebook
-   - Call `mcp__python-repl__execute_python` for cell-by-cell analysis
-   - Call `mcp__python-repl__get_kernel_state` to check variable state
-   - Call `mcp__python-repl__install_package` if additional packages are needed
+5. **MCP tool usage**: Explicit instructions to use the Python REPL MCP server via the unified `mcp__python-repl__python_repl` tool:
+   - Call with `action: "start_notebook"` to create their notebook
+   - Call with `action: "execute"` for cell-by-cell analysis
+   - Call with `action: "get_state"` to check variable state
+   - Call with `action: "install_package"` if additional packages are needed
 6. **Output directory**: The full path to their output folder (e.g., `.otterwise/{session-id}/teammate-N/`)
 7. **Summary format**: Instruct them to write `summary.md` in their output directory using the Teammate Summary Format defined below
 

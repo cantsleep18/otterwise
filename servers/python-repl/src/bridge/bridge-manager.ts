@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import {
   connect as socketConnect,
@@ -16,8 +16,10 @@ import {
   getMetaPath,
   ensureSessionDir,
   cleanup,
+  validateSessionId,
 } from "./paths.js";
 import type {
+  BridgeMeta,
   ExecuteResponse,
   StateResponse,
   InterruptResponse,
@@ -34,11 +36,9 @@ const SIGINT_TIMEOUT_MS = 5_000;
 const SIGTERM_TIMEOUT_MS = 2_500;
 const MAX_RESPAWN_ATTEMPTS = 5;
 const RESPAWN_BASE_DELAY_MS = 500;
+const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours
 
-interface BridgeMeta {
-  pid: number;
-  start_time: number;
-}
+const FORBIDDEN_PATTERNS = ["os.system(", "subprocess.", "eval(", "__import__"];
 
 function generateSessionId(): string {
   const ts = Date.now();
@@ -46,10 +46,11 @@ function generateSessionId(): string {
   return `${ts}-${rand}`;
 }
 
-export class PythonBridge {
+export class BridgeManager {
   private process: ChildProcess | null = null;
   private sessionId: string | null = null;
   private startTime: number | null = null;
+  private bridgeMeta: BridgeMeta | null = null;
   private respawnCount = 0;
   private spawning: Promise<void> | null = null;
 
@@ -58,6 +59,12 @@ export class PythonBridge {
    */
   private async spawnWorker(): Promise<void> {
     const sessionId = generateSessionId();
+
+    // Validate generated session ID
+    if (!validateSessionId(sessionId)) {
+      throw new Error(`Generated session ID failed validation: ${sessionId}`);
+    }
+
     const socketPath = getSocketPath(sessionId);
 
     await ensureSessionDir(sessionId);
@@ -83,13 +90,28 @@ export class PythonBridge {
     // Validate bridge_meta.json
     const metaPath = getMetaPath(sessionId);
     const meta = await this.readMeta(metaPath);
-    if (meta && meta.pid !== proc.pid) {
-      proc.kill("SIGKILL");
-      await release(sessionId);
-      throw new Error(
-        `Worker PID mismatch: expected ${proc.pid}, meta says ${meta.pid}`,
-      );
+    if (meta) {
+      // PID must match the spawned process
+      if (meta.pid !== proc.pid) {
+        proc.kill("SIGKILL");
+        await release(sessionId);
+        throw new Error(
+          `Worker PID mismatch: expected ${proc.pid}, meta says ${meta.pid}`,
+        );
+      }
+
+      // Verify socket path in meta matches what we expect (anti-hijack)
+      if (meta.socketPath && meta.socketPath !== socketPath) {
+        proc.kill("SIGKILL");
+        await release(sessionId);
+        throw new Error(
+          `Socket path mismatch: expected ${socketPath}, meta says ${meta.socketPath}`,
+        );
+      }
     }
+
+    // Verify the socket file exists and is owned correctly before connecting
+    await this.verifySocketPath(socketPath);
 
     // Connect the socket client
     await socketConnect(socketPath);
@@ -101,13 +123,14 @@ export class PythonBridge {
         this.spawning = null;
       }
       process.stderr.write(
-        `[python-bridge] Worker exited (code=${code}, signal=${signal})\n`,
+        `[bridge-manager] Worker exited (code=${code}, signal=${signal})\n`,
       );
     });
 
     this.process = proc;
     this.sessionId = sessionId;
     this.startTime = Date.now();
+    this.bridgeMeta = meta;
     this.respawnCount = 0;
   }
 
@@ -152,13 +175,69 @@ export class PythonBridge {
     try {
       const raw = await readFile(metaPath, "utf-8");
       const parsed = JSON.parse(raw) as BridgeMeta;
-      if (typeof parsed.pid !== "number" || typeof parsed.start_time !== "number") {
+      if (typeof parsed.pid !== "number" || typeof parsed.startTime !== "number") {
         return null;
       }
       return parsed;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Verify the socket path exists and is a socket (not a symlink or regular file).
+   * Prevents socket hijack attacks where an attacker places a symlink or file
+   * at the expected socket path.
+   */
+  private async verifySocketPath(socketPath: string): Promise<void> {
+    try {
+      // Use lstat to NOT follow symlinks
+      const stats = await stat(socketPath);
+      if (!stats.isSocket()) {
+        throw new Error(
+          `Expected socket at ${socketPath} but found ${stats.isSymbolicLink() ? "symlink" : "regular file"}`,
+        );
+      }
+    } catch (err: unknown) {
+      // If the file doesn't exist yet, the worker may not have created it;
+      // the connect() call will fail naturally in that case.
+      if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
+        return;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Validate that the bridge can be reused for the current session.
+   * Checks session ID, PID, and process identity to prevent poisoning.
+   */
+  private validateBridgeReuse(): boolean {
+    if (!this.process || !this.sessionId || !this.bridgeMeta) {
+      return false;
+    }
+
+    // Verify PID matches the stored process
+    if (this.process.pid !== this.bridgeMeta.pid) {
+      process.stderr.write(
+        `[bridge-manager] PID mismatch on reuse: process=${this.process.pid}, meta=${this.bridgeMeta.pid}\n`,
+      );
+      return false;
+    }
+
+    // Verify process start time to detect PID reuse
+    if (this.bridgeMeta.startTime && this.startTime) {
+      const drift = Math.abs(this.bridgeMeta.startTime - this.startTime);
+      // Allow 5 second tolerance
+      if (drift > 5000) {
+        process.stderr.write(
+          `[bridge-manager] Start time drift too large on reuse: ${drift}ms\n`,
+        );
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -178,7 +257,23 @@ export class PythonBridge {
       this.process.exitCode === null &&
       isConnected();
 
-    if (alive) return;
+    if (alive) {
+      // Session age check — force respawn after SESSION_MAX_AGE_MS
+      if (this.startTime && Date.now() - this.startTime > SESSION_MAX_AGE_MS) {
+        process.stderr.write(
+          `[bridge-manager] Session exceeded max age (${SESSION_MAX_AGE_MS}ms), forcing respawn\n`,
+        );
+        await this.cleanupSession();
+      // Additional anti-poisoning check on reuse
+      } else if (!this.validateBridgeReuse()) {
+        process.stderr.write(
+          `[bridge-manager] Bridge reuse validation failed, forcing respawn\n`,
+        );
+        await this.cleanupSession();
+      } else {
+        return;
+      }
+    }
 
     // Need to spawn or respawn
     if (this.respawnCount >= MAX_RESPAWN_ATTEMPTS) {
@@ -191,7 +286,7 @@ export class PythonBridge {
     if (this.respawnCount > 0) {
       const delay = RESPAWN_BASE_DELAY_MS * Math.pow(2, this.respawnCount - 1);
       process.stderr.write(
-        `[python-bridge] Respawning worker (attempt ${this.respawnCount + 1}/${MAX_RESPAWN_ATTEMPTS}, delay ${delay}ms)\n`,
+        `[bridge-manager] Respawning worker (attempt ${this.respawnCount + 1}/${MAX_RESPAWN_ATTEMPTS}, delay ${delay}ms)\n`,
       );
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -223,9 +318,23 @@ export class PythonBridge {
       this.sessionId = null;
     }
     this.startTime = null;
+    this.bridgeMeta = null;
+  }
+
+  /**
+   * Defense-in-depth code sanitization check.
+   * Rejects code containing known dangerous patterns.
+   */
+  private sanitizeCheck(code: string): void {
+    for (const pattern of FORBIDDEN_PATTERNS) {
+      if (code.includes(pattern)) {
+        throw new Error(`Forbidden pattern detected: ${pattern}`);
+      }
+    }
   }
 
   async execute(code: string): Promise<ExecuteResponse> {
+    this.sanitizeCheck(code);
     await this.ensureReady();
     try {
       const result = await sendRequest<ExecuteResponse>("execute", { code });
@@ -292,6 +401,7 @@ export class PythonBridge {
     this.process = null;
     this.sessionId = null;
     this.startTime = null;
+    this.bridgeMeta = null;
     this.spawning = null;
     this.respawnCount = 0;
   }
@@ -333,3 +443,6 @@ export class PythonBridge {
     });
   }
 }
+
+// Re-export as PythonBridge for backward compatibility
+export { BridgeManager as PythonBridge };

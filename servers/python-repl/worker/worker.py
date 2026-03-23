@@ -5,7 +5,7 @@ Communicates over AF_UNIX (or localhost TCP on Windows) using
 newline-delimited JSON-RPC 2.0.
 
 Usage:
-    python worker.py --socket /path/to/bridge.sock [--ready-file /path/to/ready]
+    python worker.py --socket-path /path/to/bridge.sock [--ready-file /path/to/ready]
     python worker.py --port 9001 [--ready-file /path/to/ready]
 
 Env vars (fallbacks for CLI args):
@@ -25,6 +25,7 @@ import base64
 import traceback
 import resource
 import argparse
+import uuid
 
 # ---------------------------------------------------------------------------
 # JSON-RPC 2.0 helpers
@@ -48,6 +49,49 @@ METHOD_NOT_FOUND = -32601
 INTERNAL_ERROR = -32603
 
 # ---------------------------------------------------------------------------
+# Bounded output capture
+# ---------------------------------------------------------------------------
+
+class BoundedStringIO:
+    """StringIO with a maximum size limit to prevent memory exhaustion."""
+    def __init__(self, max_bytes=1_048_576):  # 1 MB default
+        self._buf = io.StringIO()
+        self._max = max_bytes
+        self._size = 0
+        self._truncated = False
+
+    def write(self, s):
+        if self._truncated:
+            return len(s)
+        encoded_len = len(s.encode("utf-8", errors="replace"))
+        if self._size + encoded_len > self._max:
+            self._truncated = True
+            self._buf.write("\n... [output truncated at 1 MB] ...\n")
+            return len(s)
+        self._size += encoded_len
+        return self._buf.write(s)
+
+    def getvalue(self):
+        return self._buf.getvalue()
+
+    @property
+    def truncated(self):
+        return self._truncated
+
+    def flush(self):
+        self._buf.flush()
+
+# ---------------------------------------------------------------------------
+# SIGALRM timeout handler (Unix only)
+# ---------------------------------------------------------------------------
+
+def _alarm_handler(signum, frame):
+    raise TimeoutError("Execution timed out")
+
+if hasattr(signal, "SIGALRM"):
+    signal.signal(signal.SIGALRM, _alarm_handler)
+
+# ---------------------------------------------------------------------------
 # Execution engine — persistent globals, plain exec()
 # ---------------------------------------------------------------------------
 
@@ -66,27 +110,47 @@ class ExecutionEngine:
         except ImportError:
             pass
 
-    def execute(self, code):
+    def execute(self, code, timeout=30):
         """Execute code, return dict with stdout, stderr, success, figures."""
-        out_buf = io.StringIO()
-        err_buf = io.StringIO()
+        out_buf = BoundedStringIO()
+        err_buf = BoundedStringIO()
         success = True
+        error_detail = None
 
         with self._lock:
             self._interrupted = False
             old_stdout, old_stderr = sys.stdout, sys.stderr
             sys.stdout, sys.stderr = out_buf, err_buf
             try:
+                if hasattr(signal, "SIGALRM"):
+                    signal.alarm(int(timeout))
                 exec(compile(code, "<repl>", "exec"), self._globals)
             except SystemExit:
                 raise
             except KeyboardInterrupt:
                 success = False
                 err_buf.write("Execution interrupted\n")
-            except Exception:
+            except TimeoutError as exc:
                 success = False
-                err_buf.write(traceback.format_exc())
+                tb = traceback.format_exc()
+                err_buf.write(f"Execution timed out after {timeout}s\n")
+                error_detail = {
+                    "type": type(exc).__name__,
+                    "message": str(exc),
+                    "traceback": tb,
+                }
+            except Exception as exc:
+                success = False
+                tb = traceback.format_exc()
+                err_buf.write(tb)
+                error_detail = {
+                    "type": type(exc).__name__,
+                    "message": str(exc),
+                    "traceback": tb,
+                }
             finally:
+                if hasattr(signal, "SIGALRM"):
+                    signal.alarm(0)
                 sys.stdout, sys.stderr = old_stdout, old_stderr
 
         figures = self._capture_figures()
@@ -96,6 +160,7 @@ class ExecutionEngine:
             "stdout": out_buf.getvalue(),
             "stderr": err_buf.getvalue(),
             "figures": figures,
+            "error_detail": error_detail,
         }
 
     def interrupt(self):
@@ -139,10 +204,25 @@ class ExecutionEngine:
                 entry["dtype"] = str(val.dtype)
             variables[name] = entry
 
-        usage = resource.getrusage(resource.RUSAGE_SELF)
-        memory_mb = usage.ru_maxrss / 1024  # Linux: KB -> MB
+        rss_kb = 0
+        vms_kb = 0
+        try:
+            with open("/proc/self/status") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        rss_kb = int(line.split()[1])
+                    elif line.startswith("VmSize:"):
+                        vms_kb = int(line.split()[1])
+        except (OSError, ValueError):
+            usage = resource.getrusage(resource.RUSAGE_SELF)
+            rss_kb = usage.ru_maxrss  # Linux: KB
+            vms_kb = 0
 
-        return {"variables": variables, "memory_mb": round(memory_mb, 1)}
+        return {
+            "variables": variables,
+            "memory_mb": round(rss_kb / 1024, 1),
+            "vms_mb": round(vms_kb / 1024, 1),
+        }
 
     def _capture_figures(self):
         """Capture open matplotlib figures as base64 PNG, then close them."""
@@ -201,7 +281,10 @@ def handle_client(conn, engine, shutdown_event):
             try:
                 if method == "execute":
                     code = params.get("code", "")
-                    result = engine.execute(code)
+                    timeout = params.get("timeout", 30)
+                    marker = f"EXEC_{uuid.uuid4().hex[:8]}"
+                    result = engine.execute(code, timeout=timeout)
+                    result["marker"] = marker
                     send(_ok(req_id, result))
 
                 elif method == "interrupt":
@@ -314,6 +397,7 @@ def run_server(sock_path=None, port=None, ready_file=None, parent_pid=None):
         start_parent_monitor(parent_pid, shutdown_event)
 
         print(f"Worker listening on {listen_addr}", file=sys.stderr)
+        print("READY", flush=True)  # Signal to bridge-manager via stdout
 
         # Accept loop
         while not shutdown_event.is_set():
@@ -357,7 +441,7 @@ def run_server(sock_path=None, port=None, ready_file=None, parent_pid=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Python REPL worker")
-    parser.add_argument("--socket", default=os.environ.get("WORKER_SOCKET_PATH"),
+    parser.add_argument("--socket-path", dest="socket", default=os.environ.get("WORKER_SOCKET_PATH"),
                         help="Unix domain socket path")
     parser.add_argument("--port", type=int, default=None,
                         help="TCP port (Windows fallback)")
