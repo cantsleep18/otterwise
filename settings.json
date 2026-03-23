@@ -1,9 +1,14 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "permissions": {
     "allow": [
       "mcp__python-repl__python_repl",
       "Bash(python*)",
       "Bash(pip*)",
+      "Bash(mkdir*)",
+      "Bash(ls*)",
       "TeamCreate",
       "TeamDelete",
       "TaskCreate",
