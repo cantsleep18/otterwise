@@ -1,14 +1,13 @@
 /**
- * Test scenarios for auto pilot loop control, stopping conditions, and state transitions.
+ * Test scenarios for autopilot graph expansion, stopping conditions, and state transitions.
  *
  * Usage:
  *   import { scenarios, autopilotConfigs, autopilotStates } from "../fixtures/autopilot-scenarios.js";
  */
 
-// ── AutopilotConfig type (mirrors AUTOPILOT_IMPL_SPEC.md Section 4) ──
+// ── AutopilotConfig type (graph-based expansion) ──
 
-export interface AutopilotRound {
-  number: number;
+export interface AutopilotNode {
   reportId: string;
   parentId: string | null;
   status: "completed" | "in-progress" | "timeout" | "failed";
@@ -30,7 +29,7 @@ export interface AutopilotConfig {
   seedPhrase: string;
   customStoppingCriteria: string[];
   stopping: {
-    minFindingsPerRound: number;
+    minFindingsPerNode: number;
     maxDeadEndRatio: number;
   };
   scope: {
@@ -44,12 +43,12 @@ export interface AutopilotConfig {
   createdAt: string;
   completedAt: string | null;
   stoppingReason: string | null;
-  totalRounds: number;
+  totalNodes: number;
   totalFindings: number;
-  rounds: AutopilotRound[];
+  nodes: AutopilotNode[];
 }
 
-// ── AutopilotState type (control signal file, AUTOPILOT_IMPL_SPEC.md Section 4) ──
+// ── AutopilotState type (control signal file) ──
 
 export interface AutopilotState {
   command: "running" | "pause" | "resume" | "abort";
@@ -57,7 +56,7 @@ export interface AutopilotState {
   reason: string | null;
 }
 
-// ── Stopping reason enum (AUTOPILOT_IMPL_SPEC.md Section 4) ──
+// ── Stopping reason enum ──
 
 export type StoppingReason =
   | "max-iterations"
@@ -74,7 +73,7 @@ export type StoppingReason =
 // ── Config fixtures ──────────────────────────────────────────────
 
 export const autopilotConfigs = {
-  /** Fresh session — balanced defaults, no rounds yet */
+  /** Fresh session — balanced defaults, no nodes yet */
   balanced: {
     $schema: "autopilot-config",
     maxIterations: 5,
@@ -85,7 +84,7 @@ export const autopilotConfigs = {
     seedPhrase: "autopilot-20260323-143015",
     customStoppingCriteria: [],
     stopping: {
-      minFindingsPerRound: 2,
+      minFindingsPerNode: 2,
       maxDeadEndRatio: 0.6,
     },
     scope: {
@@ -94,17 +93,17 @@ export const autopilotConfigs = {
       depthLimit: 4,
     },
     notifications: {
-      progressUpdates: "per-round",
+      progressUpdates: "per-node",
     },
     createdAt: "2026-03-23T14:30:15.000Z",
     completedAt: null,
     stoppingReason: null,
-    totalRounds: 0,
+    totalNodes: 0,
     totalFindings: 0,
-    rounds: [],
+    nodes: [],
   } satisfies AutopilotConfig,
 
-  /** Quick 2-round scan */
+  /** Quick 2-iteration scan */
   quickScan: {
     $schema: "autopilot-config",
     maxIterations: 2,
@@ -115,7 +114,7 @@ export const autopilotConfigs = {
     seedPhrase: "autopilot-20260323-160000",
     customStoppingCriteria: [],
     stopping: {
-      minFindingsPerRound: 2,
+      minFindingsPerNode: 2,
       maxDeadEndRatio: 0.6,
     },
     scope: {
@@ -124,17 +123,17 @@ export const autopilotConfigs = {
       depthLimit: 4,
     },
     notifications: {
-      progressUpdates: "per-round",
+      progressUpdates: "per-node",
     },
     createdAt: "2026-03-23T16:00:00.000Z",
     completedAt: null,
     stoppingReason: null,
-    totalRounds: 0,
+    totalNodes: 0,
     totalFindings: 0,
-    rounds: [],
+    nodes: [],
   } satisfies AutopilotConfig,
 
-  /** Deep 10-round investigation with custom criteria */
+  /** Deep 10-iteration investigation with custom criteria */
   deepAnalysis: {
     $schema: "autopilot-config",
     maxIterations: 10,
@@ -147,7 +146,7 @@ export const autopilotConfigs = {
       "Stop if all anomaly types have been categorized",
     ],
     stopping: {
-      minFindingsPerRound: 2,
+      minFindingsPerNode: 2,
       maxDeadEndRatio: 0.6,
     },
     scope: {
@@ -156,18 +155,18 @@ export const autopilotConfigs = {
       depthLimit: 4,
     },
     notifications: {
-      progressUpdates: "per-round",
+      progressUpdates: "per-node",
     },
     createdAt: "2026-03-23T17:00:00.000Z",
     completedAt: null,
     stoppingReason: null,
-    totalRounds: 0,
+    totalNodes: 0,
     totalFindings: 0,
-    rounds: [],
+    nodes: [],
   } satisfies AutopilotConfig,
 
-  /** Single-round config (edge case) */
-  singleRound: {
+  /** Single-iteration config (edge case) */
+  singleIteration: {
     $schema: "autopilot-config",
     maxIterations: 1,
     maxConcurrentTeammates: 3,
@@ -177,7 +176,7 @@ export const autopilotConfigs = {
     seedPhrase: "autopilot-20260323-180000",
     customStoppingCriteria: [],
     stopping: {
-      minFindingsPerRound: 2,
+      minFindingsPerNode: 2,
       maxDeadEndRatio: 0.6,
     },
     scope: {
@@ -186,17 +185,17 @@ export const autopilotConfigs = {
       depthLimit: 4,
     },
     notifications: {
-      progressUpdates: "per-round",
+      progressUpdates: "per-node",
     },
     createdAt: "2026-03-23T18:00:00.000Z",
     completedAt: null,
     stoppingReason: null,
-    totalRounds: 0,
+    totalNodes: 0,
     totalFindings: 0,
-    rounds: [],
+    nodes: [],
   } satisfies AutopilotConfig,
 
-  /** Completed session — 5 rounds finished */
+  /** Completed session — 5 nodes expanded */
   completed: {
     $schema: "autopilot-config",
     maxIterations: 5,
@@ -207,7 +206,7 @@ export const autopilotConfigs = {
     seedPhrase: "autopilot-20260323-143015",
     customStoppingCriteria: [],
     stopping: {
-      minFindingsPerRound: 2,
+      minFindingsPerNode: 2,
       maxDeadEndRatio: 0.6,
     },
     scope: {
@@ -216,16 +215,15 @@ export const autopilotConfigs = {
       depthLimit: 4,
     },
     notifications: {
-      progressUpdates: "per-round",
+      progressUpdates: "per-node",
     },
     createdAt: "2026-03-23T14:30:15.000Z",
     completedAt: "2026-03-23T15:05:00.000Z",
     stoppingReason: "max-iterations",
-    totalRounds: 5,
+    totalNodes: 5,
     totalFindings: 23,
-    rounds: [
+    nodes: [
       {
-        number: 1,
         reportId: "20260323_143015_a1b2",
         parentId: null,
         status: "completed",
@@ -237,7 +235,6 @@ export const autopilotConfigs = {
         completedAt: "2026-03-23T14:38:22.000Z",
       },
       {
-        number: 2,
         reportId: "20260323_143822_c3d4",
         parentId: "20260323_143015_a1b2",
         status: "completed",
@@ -249,7 +246,6 @@ export const autopilotConfigs = {
         completedAt: "2026-03-23T14:46:15.000Z",
       },
       {
-        number: 3,
         reportId: "20260323_144615_e5f6",
         parentId: "20260323_143015_a1b2",
         status: "completed",
@@ -261,7 +257,6 @@ export const autopilotConfigs = {
         completedAt: "2026-03-23T14:53:45.000Z",
       },
       {
-        number: 4,
         reportId: "20260323_145345_g7h8",
         parentId: "20260323_143822_c3d4",
         status: "completed",
@@ -273,7 +268,6 @@ export const autopilotConfigs = {
         completedAt: "2026-03-23T15:00:30.000Z",
       },
       {
-        number: 5,
         reportId: "20260323_150030_i9j0",
         parentId: "20260323_144615_e5f6",
         status: "completed",
@@ -287,7 +281,7 @@ export const autopilotConfigs = {
     ],
   } satisfies AutopilotConfig,
 
-  /** In-progress session — 2 rounds done */
+  /** In-progress session — 2 nodes expanded */
   inProgress: {
     $schema: "autopilot-config",
     maxIterations: 5,
@@ -298,7 +292,7 @@ export const autopilotConfigs = {
     seedPhrase: "autopilot-20260323-143015",
     customStoppingCriteria: [],
     stopping: {
-      minFindingsPerRound: 2,
+      minFindingsPerNode: 2,
       maxDeadEndRatio: 0.6,
     },
     scope: {
@@ -307,16 +301,15 @@ export const autopilotConfigs = {
       depthLimit: 4,
     },
     notifications: {
-      progressUpdates: "per-round",
+      progressUpdates: "per-node",
     },
     createdAt: "2026-03-23T14:30:15.000Z",
     completedAt: null,
     stoppingReason: null,
-    totalRounds: 2,
+    totalNodes: 2,
     totalFindings: 9,
-    rounds: [
+    nodes: [
       {
-        number: 1,
         reportId: "20260323_143015_a1b2",
         parentId: null,
         status: "completed",
@@ -328,7 +321,6 @@ export const autopilotConfigs = {
         completedAt: "2026-03-23T14:38:22.000Z",
       },
       {
-        number: 2,
         reportId: "20260323_143822_c3d4",
         parentId: "20260323_143015_a1b2",
         status: "completed",
@@ -382,32 +374,32 @@ export interface AutopilotScenario {
   description: string;
   /** Initial config for this scenario */
   config: AutopilotConfig;
-  /** Sequence of round findings (array index = round number - 1) */
-  roundFindings: number[];
+  /** Sequence of node findings (array index = expansion step) */
+  nodeFindings: number[];
   /** Expected stopping reason from the enum */
   expectedStopReason: StoppingReason;
   /** Expected control signal commands during the scenario */
   controlSignals?: AutopilotState[];
-  /** Whether a pause occurs (and at which round) */
-  pauseAtRound?: number;
+  /** Whether a pause occurs (and at which node) */
+  pauseAtNode?: number;
   /** Whether user resumes after pause */
   resumeAfterPause?: boolean;
-  /** Whether user aborts (and at which round) */
-  abortAtRound?: number;
-  /** Expected round statuses at end */
-  expectedRoundStatuses?: Record<string, AutopilotRound["status"]>;
+  /** Whether user aborts (and at which node) */
+  abortAtNode?: number;
+  /** Expected node statuses at end */
+  expectedNodeStatuses?: Record<string, AutopilotNode["status"]>;
 }
 
 export const scenarios = {
-  /** 5 rounds, normal stop at max iterations */
+  /** 5 nodes expanded, normal stop at max iterations */
   normalCompletion: {
     description:
-      "Runs all 5 rounds to completion with steady findings, stops at max-iterations",
+      "Expands 5 graph nodes to completion with steady findings, stops at max-iterations",
     config: autopilotConfigs.balanced,
-    roundFindings: [5, 4, 6, 5, 3],
+    nodeFindings: [5, 4, 6, 5, 3],
     expectedStopReason: "max-iterations",
     controlSignals: [autopilotStates.running],
-    expectedRoundStatuses: {
+    expectedNodeStatuses: {
       "20260323_143015_a1b2": "completed",
       "20260323_143822_c3d4": "completed",
       "20260323_144615_e5f6": "completed",
@@ -416,36 +408,36 @@ export const scenarios = {
     },
   } satisfies AutopilotScenario,
 
-  /** Stops at round 3 due to low findings (diminishing returns) */
+  /** Stops at node 3 due to low findings (diminishing returns) */
   diminishingReturns: {
     description:
-      "Findings drop steadily, auto pilot stops early due to diminishing-returns",
+      "Findings drop steadily, autopilot stops early due to diminishing-returns",
     config: autopilotConfigs.balanced,
-    roundFindings: [5, 3, 1],
+    nodeFindings: [5, 3, 1],
     expectedStopReason: "diminishing-returns",
     controlSignals: [autopilotStates.running],
-    expectedRoundStatuses: {
+    expectedNodeStatuses: {
       "20260323_143015_a1b2": "completed",
       "20260323_143822_c3d4": "completed",
       "20260323_144615_e5f6": "completed",
     },
   } satisfies AutopilotScenario,
 
-  /** Paused at round 2, resumed, completed at round 4 */
+  /** Paused at node 2, resumed, completed at node 4 */
   userPause: {
     description:
-      "User pauses after round 2, resumes, auto pilot completes at round 4 with diminishing-returns",
+      "User pauses after node 2, resumes, autopilot completes at node 4 with diminishing-returns",
     config: autopilotConfigs.balanced,
-    roundFindings: [5, 4, 3, 1],
+    nodeFindings: [5, 4, 3, 1],
     expectedStopReason: "diminishing-returns",
-    pauseAtRound: 2,
+    pauseAtNode: 2,
     resumeAfterPause: true,
     controlSignals: [
       autopilotStates.running,
       autopilotStates.paused,
       autopilotStates.resumed,
     ],
-    expectedRoundStatuses: {
+    expectedNodeStatuses: {
       "20260323_143015_a1b2": "completed",
       "20260323_143822_c3d4": "completed",
       "20260323_144615_e5f6": "completed",
@@ -453,16 +445,16 @@ export const scenarios = {
     },
   } satisfies AutopilotScenario,
 
-  /** Aborted at round 3 with partial results */
+  /** Aborted at node 3 with partial results */
   userAbort: {
     description:
-      "User aborts mid-session at round 3; partial results preserved",
+      "User aborts mid-session at node 3; partial results preserved",
     config: autopilotConfigs.balanced,
-    roundFindings: [5, 4, 3],
+    nodeFindings: [5, 4, 3],
     expectedStopReason: "user-abort",
-    abortAtRound: 3,
+    abortAtNode: 3,
     controlSignals: [autopilotStates.running, autopilotStates.aborted],
-    expectedRoundStatuses: {
+    expectedNodeStatuses: {
       "20260323_143015_a1b2": "completed",
       "20260323_143822_c3d4": "completed",
       "20260323_144615_e5f6": "completed",
@@ -472,27 +464,27 @@ export const scenarios = {
   /** Stops because dead-end ratio exceeds threshold */
   allDeadEnds: {
     description:
-      "Over 50% of recent branches are dead-ends, auto pilot stops with dead-end-saturation",
+      "Over 50% of recent branches are dead-ends, autopilot stops with dead-end-saturation",
     config: autopilotConfigs.balanced,
-    roundFindings: [5, 0, 0],
+    nodeFindings: [5, 0, 0],
     expectedStopReason: "dead-end-saturation",
     controlSignals: [autopilotStates.running],
-    expectedRoundStatuses: {
+    expectedNodeStatuses: {
       "20260323_143015_a1b2": "completed",
       "20260323_143822_c3d4": "completed",
       "20260323_144615_e5f6": "completed",
     },
   } satisfies AutopilotScenario,
 
-  /** Stops after round 1 because maxIterations=1 */
-  singleRound: {
+  /** Stops after 1 node because maxIterations=1 */
+  singleIteration: {
     description:
-      "Single-round config; auto pilot runs one round and stops at max-iterations",
-    config: autopilotConfigs.singleRound,
-    roundFindings: [8],
+      "Single-iteration config; autopilot expands one node and stops at max-iterations",
+    config: autopilotConfigs.singleIteration,
+    nodeFindings: [8],
     expectedStopReason: "max-iterations",
     controlSignals: [autopilotStates.running],
-    expectedRoundStatuses: {
+    expectedNodeStatuses: {
       "20260323_180000_a1b2": "completed",
     },
   } satisfies AutopilotScenario,

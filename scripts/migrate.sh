@@ -48,9 +48,8 @@ merge_settings() {
 
   need jq || return
 
-  # Canonical tool list — the MCP server exposes a single tool
+  # Canonical tool list — no MCP tools after REPL removal
   local CANONICAL_TOOLS=(
-    "mcp__python-repl__python_repl"
   )
 
   local CURRENT_TOOLS
@@ -194,104 +193,21 @@ merge_mcp() {
 
   need jq || return
 
-  # Verify python-repl server entry exists and points to bundled artifact
-  local SERVER_CMD
-  SERVER_CMD=$(jq -r '.mcpServers["python-repl"].command // empty' "$MCP" 2>/dev/null)
-  local SERVER_ARGS
-  SERVER_ARGS=$(jq -r '.mcpServers["python-repl"].args[0] // empty' "$MCP" 2>/dev/null)
+  # Verify no stale MCP server entries remain
+  local SERVER_COUNT
+  SERVER_COUNT=$(jq '.mcpServers | keys | length' "$MCP" 2>/dev/null || echo "0")
 
-  if [ -z "$SERVER_CMD" ]; then
-    fail ".mcp.json missing python-repl server entry"
-    return
-  fi
-
-  # Check it points to the bundled CJS artifact (not tsx dev mode)
-  if echo "$SERVER_ARGS" | grep -q 'dist/mcp-server.cjs'; then
-    ok ".mcp.json points to bundled artifact"
-  elif echo "$SERVER_ARGS" | grep -q 'src/index.ts'; then
-    warn ".mcp.json points to source (src/index.ts) instead of bundle (dist/mcp-server.cjs)"
-    if [ "$DRY_RUN" = false ]; then
-      jq '.mcpServers["python-repl"].args = ["${CLAUDE_PLUGIN_ROOT}/servers/python-repl/dist/mcp-server.cjs"]' \
-        "$MCP" > "${MCP}.tmp"
-      mv "${MCP}.tmp" "$MCP"
-      ok ".mcp.json updated to bundled artifact"
-      changed
-    fi
+  if [ "$SERVER_COUNT" -eq 0 ]; then
+    ok ".mcp.json has no MCP servers (expected)"
   else
-    warn ".mcp.json has unexpected server path: $SERVER_ARGS"
-  fi
-}
-
-# --- 4. Clean stale build artifacts -----------------------------------------
-
-clean_build() {
-  heading "Build Artifact Cleanup"
-
-  local DIST="$PLUGIN_ROOT/servers/python-repl/dist"
-
-  if [ ! -d "$DIST" ]; then
-    info "No dist/ directory — will be created during build"
-    return
-  fi
-
-  # Remove stale artifacts that are not part of the current build output
-  # The build produces only: mcp-server.cjs
-  # Legacy artifacts: index.js, index.d.ts (from old tsc build)
-  local STALE_FILES=("index.js" "index.d.ts")
-  local FOUND_STALE=()
-
-  for f in "${STALE_FILES[@]}"; do
-    if [ -f "$DIST/$f" ]; then
-      FOUND_STALE+=("$f")
-    fi
-  done
-
-  if [ ${#FOUND_STALE[@]} -eq 0 ]; then
-    ok "No stale build artifacts"
-    return
-  fi
-
-  info "Found ${#FOUND_STALE[@]} stale artifact(s): ${FOUND_STALE[*]}"
-  if [ "$DRY_RUN" = false ]; then
-    for f in "${FOUND_STALE[@]}"; do
-      rm -f "$DIST/$f"
-      info "  Removed $f"
+    warn ".mcp.json has $SERVER_COUNT server(s) — review for stale entries"
+    jq -r '.mcpServers | keys[]' "$MCP" 2>/dev/null | while read -r name; do
+      warn "  MCP server: $name"
     done
-    ok "Stale artifacts cleaned"
-    changed
-  else
-    info "(dry-run) Would remove stale artifacts"
   fi
 }
 
-# --- 5. Rebuild MCP server --------------------------------------------------
-
-rebuild_server() {
-  heading "MCP Server Rebuild"
-
-  local BUILD_SCRIPT="$PLUGIN_ROOT/servers/python-repl/scripts/build.mjs"
-  if [ ! -f "$BUILD_SCRIPT" ]; then
-    fail "Build script not found: $BUILD_SCRIPT"
-    return
-  fi
-
-  need node || return
-
-  if [ "$DRY_RUN" = true ]; then
-    info "(dry-run) Would rebuild MCP server"
-    return
-  fi
-
-  info "Rebuilding MCP server..."
-  if (cd "$PLUGIN_ROOT/servers/python-repl" && node scripts/build.mjs 2>&1); then
-    ok "MCP server rebuilt successfully"
-    changed
-  else
-    fail "MCP server build failed"
-  fi
-}
-
-# --- 6. Validate .otterwise/ cache integrity --------------------------------
+# --- 4. Validate .otterwise/ cache integrity --------------------------------
 
 validate_cache() {
   heading "Cache & Schema Migration"
@@ -314,7 +230,7 @@ validate_cache() {
 
   # Migrate each user data file
   # config.json = research session config
-  # autopilot.json = autopilot session config (rounds, settings)
+  # autopilot.json = autopilot session config (nodes, settings)
   # autopilot-state.json = runtime control signal (command, updatedAt, reason)
   local DATA_FILES=("config.json" "autopilot.json" "autopilot-state.json")
   for filename in "${DATA_FILES[@]}"; do
@@ -466,8 +382,6 @@ main() {
   merge_settings
   merge_hooks
   merge_mcp
-  clean_build
-  rebuild_server
   validate_cache
   validate_plugin
 

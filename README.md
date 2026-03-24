@@ -1,7 +1,5 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Claude_Code-Extension-blueviolet?style=for-the-badge" alt="Claude Code Extension" />
-  <img src="https://img.shields.io/badge/Python-stdlib_only-green?style=for-the-badge&logo=python" alt="Zero pip install" />
-  <img src="https://img.shields.io/badge/Tests-78_passing-brightgreen?style=for-the-badge" alt="78 tests passing" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -9,9 +7,9 @@
 
 > **Autonomous compound research platform for Claude Code**
 
-Like an otter using tools to crack open shellfish, Otterwise autonomously cracks open your datasets -- spawning research teams, producing Jupyter notebooks, and building an ever-expanding graph of discoveries.
+Like an otter using tools to crack open shellfish, Otterwise autonomously cracks open your datasets -- spawning research teams and building an ever-expanding graph of discoveries.
 
-**Zero setup. Zero pip install. Just plug in and research.**
+**Zero setup. Just plug in and research.**
 
 ---
 
@@ -21,12 +19,9 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 |---|---|
 | **Autonomous Research** | Give it a dataset and goals; it designs and executes multi-agent analysis |
 | **Graph-Based Expansion** | Research grows as a DAG, not linearly -- each node branches into new directions |
-| **Jupyter Notebooks** | Every analysis produces reproducible `.ipynb` notebooks with inline figures |
 | **Agent Teams** | Parallel analysis by dynamically created teammate agents |
-| **Auto Pilot** | Multi-round autonomous research with intelligent direction selection |
+| **Auto Pilot** | Autonomous graph expansion with intelligent direction selection |
 | **Auto-Update** | Seamless self-updating with cache migration and version checking via `ow-setup` |
-| **6 MCP Tools** | execute, notebook, state, install, interrupt, reset |
-| **Zero Dependencies** | Python worker uses only stdlib -- no `pip install` needed |
 
 ---
 
@@ -48,66 +43,30 @@ Otterwise creates a `.otterwise/` directory, spawns a research lead agent, and k
 
 ---
 
-## Architecture
-
-```
-                    ┌─────────────────────────────────┐
-                    │         Claude Code CLI          │
-                    └──────────┬──────────────────────┘
-                               │ stdio (MCP protocol)
-                    ┌──────────▼──────────────────────┐
-                    │    TypeScript MCP Server         │
-                    │    ├── 6 MCP tools               │
-                    │    ├── Jupyter notebook manager   │
-                    │    ├── Session lock + paths       │
-                    │    └── Socket client (JSON-RPC)   │
-                    └──────────┬──────────────────────┘
-                               │ Unix domain socket
-                               │ (JSON-RPC 2.0)
-                    ┌──────────▼──────────────────────┐
-                    │    Python Worker (stdlib only)    │
-                    │    ├── exec() persistent namespace│
-                    │    ├── matplotlib figure capture  │
-                    │    ├── SIGTERM graceful shutdown   │
-                    │    └── Parent PID monitoring       │
-                    └─────────────────────────────────┘
-```
-
-**Key design choices:**
-- **No IPython, no pip** -- worker uses `exec()` with Python stdlib only
-- **Unix sockets** -- secure IPC with file permissions, not stdin/stdout
-- **JSON-RPC 2.0** -- standard protocol with proper error codes
-- **Session locking** -- prevents concurrent execution conflicts
-- **Auto-respawn** -- worker crashes are recovered transparently
-
----
-
 ## How It Works
 
 ```
 /otterwise:research
-        │
-        ▼
+        |
+        v
   Research Lead Agent
-        │  reads config + prior reports
-        │  plans 3-5 parallel objectives
-        ▼
+        |  reads config + prior reports
+        |  plans 3-5 parallel objectives
+        v
   Agent Team (dynamic)
-        │  each teammate:
-        │    ├── creates Jupyter notebook
-        │    ├── executes Python analysis cell-by-cell
-        │    └── writes summary.md
-        ▼
+        |  each teammate:
+        |    |-- analyzes data
+        |    '-- writes summary.md
+        v
   Research Lead
-        │  synthesizes → report.md (YAML frontmatter DAG)
-        │  identifies branches for expansion
-        ▼
+        |  synthesizes -> report.md (YAML frontmatter DAG)
+        |  identifies branches for expansion
+        v
   .otterwise/
     config.json
     20260320_143022_abc_profiling/
-      report.md          ← DAG node
+      report.md          <- DAG node
       teammate-1/
-        notebook.ipynb
         summary.md
 ```
 
@@ -122,9 +81,9 @@ Each `report.md` has YAML frontmatter (`id`, `parent`, `related`, `status`) defi
 | `/otterwise:research` | Start a new research session on a dataset |
 | `/otterwise:continue` | Expand the research graph into new directions |
 | `/otterwise:status` | Display the research graph as a tree |
-| `/otterwise:autopilot` | Run autonomous multi-round research on a dataset |
-| `/otterwise:autopilot-pause` | Pause or resume a running auto pilot session (toggles) |
-| `/otterwise:autopilot-abort` | Abort auto pilot and generate partial results |
+| `/otterwise:autopilot` | Run autonomous graph-based research on a dataset |
+| `/otterwise:autopilot-pause` | Pause or resume a running autopilot session (toggles) |
+| `/otterwise:autopilot-abort` | Abort autopilot and generate partial results |
 | `/otterwise:ow-setup` | Setup, diagnose, and update Otterwise |
 
 ```
@@ -141,7 +100,7 @@ Research Graph:
 
 ## Auto Pilot
 
-Auto pilot automates the research → continue cycle, running multiple rounds of analysis without manual intervention.
+Autopilot automates the research graph expansion cycle, expanding nodes autonomously without manual intervention.
 
 ### Quick Start
 ```bash
@@ -152,7 +111,7 @@ You'll be prompted for:
 - **Dataset** -- path to your data file
 - **Goals** -- research questions (optional)
 
-Auto pilot creates an `.otterwise/autopilot.json` config and runs up to 5 rounds of autonomous research.
+Autopilot creates an `.otterwise/autopilot.json` config and runs autonomous graph expansion.
 
 ### Configuration
 
@@ -164,7 +123,7 @@ Create `.otterwise/autopilot.json` to customize behavior:
   "maxConcurrentTeammates": 3,
   "explorationStrategy": "balanced",
   "stopping": {
-    "minFindingsPerRound": 2,
+    "minFindingsPerNode": 2,
     "maxDeadEndRatio": 0.6
   },
   "scope": {
@@ -174,9 +133,9 @@ Create `.otterwise/autopilot.json` to customize behavior:
 ```
 
 ### Controls
-- **Pause/Resume**: `/otterwise:autopilot-pause` -- toggles pause state; completes current round before pausing
+- **Pause/Resume**: `/otterwise:autopilot-pause` -- toggles pause state; completes current node before pausing
 - **Abort**: `/otterwise:autopilot-abort` -- stops immediately, generates partial report
-- **Status**: `/otterwise:status` -- shows auto pilot progress and research graph
+- **Status**: `/otterwise:status` -- shows autopilot progress and research graph
 
 ---
 
@@ -196,23 +155,9 @@ The setup command runs a full diagnostic check and, if updates are available:
 2. **Downloads** the update (git pull from origin/main)
 3. **Migrates** cache and config files to the new format (preserving your research sessions)
 4. **Verifies** version consistency across plugin.json, marketplace.json, and package.json
-5. **Re-installs** npm dependencies if package.json changed
-6. **Re-runs** diagnostics to confirm everything is healthy
+5. **Re-runs** diagnostics to confirm everything is healthy
 
 Your existing `.otterwise/` research data is preserved across updates. Config files are automatically migrated to any new schema.
-
----
-
-## MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `execute_python` | Run code in persistent namespace; appends cell + output to notebook |
-| `start_notebook` | Create `.ipynb` and load dataset as `df` |
-| `get_kernel_state` | Return variable names, types, shapes, memory usage |
-| `install_package` | Install whitelisted data-science package (pandas, numpy, scipy, etc.) |
-| `interrupt_execution` | Send SIGINT to stop running code |
-| `reset_kernel` | Clear the Python namespace |
 
 ---
 
@@ -220,9 +165,6 @@ Your existing `.otterwise/` research data is preserved across updates. Config fi
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
 - Node.js 20+
-- Python 3.11+
-
-**That's it.** No `pip install`. No virtual environment. The worker runs on Python stdlib alone. Data-science packages (pandas, numpy, matplotlib, etc.) are installed on-demand via the `install_package` tool.
 
 ---
 
@@ -233,33 +175,8 @@ otterwise/
   .claude-plugin/
     plugin.json            Plugin manifest
     marketplace.json       Marketplace metadata
-  agents/
-    research-lead.md       DAG-aware research orchestrator
   hooks/
     hooks.json             Quality validation hook
-  servers/
-    python-repl/
-      src/
-        index.ts           MCP server entry (stdio transport, 6 tools)
-        bridge/
-          python-bridge.ts Socket-based bridge with auto-respawn
-          socket-client.ts JSON-RPC 2.0 client over Unix sockets
-          session-lock.ts  File-based concurrency lock
-          paths.ts         Cross-platform socket path management
-          types.ts         JSON-RPC 2.0 type definitions
-        notebook/
-          format.ts        Jupyter .ipynb read/write with cache
-          types.ts         Notebook type definitions
-        tools/
-          execute.ts       execute_python implementation
-          notebook.ts      start_notebook implementation
-          state.ts         get_kernel_state implementation
-          install.ts       install_package implementation
-          interrupt.ts     interrupt_execution implementation
-          reset.ts         reset_kernel implementation
-      worker/
-        worker.py          Python exec() worker (socket server)
-      package.json
   skills/
     research/              /otterwise:research
     continue/              /otterwise:continue
@@ -268,6 +185,9 @@ otterwise/
     ow-setup/              /otterwise:ow-setup
     autopilot-pause/       /otterwise:autopilot-pause (toggles pause/resume)
     autopilot-abort/       /otterwise:autopilot-abort
+  scripts/                 Validation and publishing scripts
+  dashboard/               Research dashboard UI
+  tests/                   Integration and fixture tests
   settings.json            Claude Code permissions
 ```
 
@@ -280,9 +200,7 @@ Permissions are granted via `settings.json`:
 ```json
 {
   "permissions": {
-    "allow": [
-      "mcp__python-repl__python_repl"
-    ]
+    "allow": []
   }
 }
 ```

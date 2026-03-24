@@ -40,7 +40,6 @@ ALLOWED_HOOK_SCRIPTS=(
 # Allowed permissions in settings.json — the full whitelist.
 # Any permission not in this list is a privilege escalation.
 ALLOWED_PERMISSIONS=(
-  "mcp__python-repl__python_repl"
 )
 
 # --- Helpers ---------------------------------------------------------------
@@ -369,60 +368,25 @@ validate_hooks_no_injection() {
 }
 
 validate_mcp_config() {
-  # Ensure .mcp.json only launches known server binaries
+  # Ensure .mcp.json does not contain unexpected MCP servers
   check_jq || return 1
 
   local MCP="$PLUGIN_ROOT/.mcp.json"
   if [ ! -f "$MCP" ]; then
-    warn ".mcp.json not found — skipping MCP config validation"
+    pass ".mcp.json not found — no MCP servers configured"
     return 0
   fi
 
-  # Validate server command is 'node' (not arbitrary binary)
-  local SERVER_CMD
-  SERVER_CMD=$(jq -r '.mcpServers["python-repl"].command // empty' "$MCP" 2>/dev/null)
-
-  if [ "$SERVER_CMD" != "node" ]; then
-    fail ".mcp.json server command is '$SERVER_CMD' (expected 'node')"
-    return 1
-  fi
-
-  # Validate args point to expected build artifact
-  local SERVER_ARGS
-  SERVER_ARGS=$(jq -r '.mcpServers["python-repl"].args[0] // empty' "$MCP" 2>/dev/null)
-
-  local EXPECTED_PATTERNS=(
-    '${CLAUDE_PLUGIN_ROOT}/servers/python-repl/dist/mcp-server.cjs'
-    '${CLAUDE_PLUGIN_ROOT}/servers/python-repl/src/index.ts'
-  )
-
-  local ARGS_OK=false
-  for pattern in "${EXPECTED_PATTERNS[@]}"; do
-    if [ "$SERVER_ARGS" = "$pattern" ]; then
-      ARGS_OK=true
-      break
-    fi
-  done
-
-  if [ "$ARGS_OK" = true ]; then
-    pass ".mcp.json server args point to known entry point"
-  else
-    fail ".mcp.json server args point to unexpected path: $SERVER_ARGS"
-    return 1
-  fi
-
-  # Check for unexpected additional MCP servers
+  # Check for unexpected MCP servers (none expected after REPL removal)
   local SERVER_COUNT
   SERVER_COUNT=$(jq '.mcpServers | keys | length' "$MCP" 2>/dev/null || echo "0")
-  if [ "$SERVER_COUNT" -gt 1 ]; then
-    warn ".mcp.json has $SERVER_COUNT servers (expected 1) — review for unauthorized servers"
+  if [ "$SERVER_COUNT" -gt 0 ]; then
+    warn ".mcp.json has $SERVER_COUNT server(s) — review for unauthorized servers"
     jq -r '.mcpServers | keys[]' "$MCP" 2>/dev/null | while read -r name; do
-      if [ "$name" != "python-repl" ]; then
-        warn "  Unexpected MCP server: $name"
-      fi
+      warn "  MCP server: $name"
     done
   else
-    pass ".mcp.json has exactly 1 MCP server (python-repl)"
+    pass ".mcp.json has no MCP servers configured"
   fi
   return 0
 }

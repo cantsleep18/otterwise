@@ -13,10 +13,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PLUGIN_JSON="$REPO_ROOT/.claude-plugin/plugin.json"
 MARKETPLACE_JSON="$REPO_ROOT/.claude-plugin/marketplace.json"
-PACKAGE_JSON="$REPO_ROOT/servers/python-repl/package.json"
 
 # Validate required files exist
-for f in "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$PACKAGE_JSON"; do
+for f in "$PLUGIN_JSON" "$MARKETPLACE_JSON"; do
   if [ ! -f "$f" ]; then
     echo "ERROR: Required file not found: $f"
     exit 1
@@ -58,15 +57,6 @@ jq --arg v "$CANONICAL" '
   && mv "$MARKETPLACE_JSON.tmp" "$MARKETPLACE_JSON"
 
 echo "  Synced $MARKETPLACE_JSON"
-
-# Note: servers/python-repl/package.json has its own independent version
-# (the MCP server package version). We do NOT sync plugin version there
-# since they are separate artifacts. Only sync if explicitly requested.
-if [ "${SYNC_PACKAGE:-}" = "1" ]; then
-  jq --arg v "$CANONICAL" '.version = $v' "$PACKAGE_JSON" > "$PACKAGE_JSON.tmp" \
-    && mv "$PACKAGE_JSON.tmp" "$PACKAGE_JSON"
-  echo "  Synced $PACKAGE_JSON (SYNC_PACKAGE=1)"
-fi
 
 # Verify all synced versions match
 MARKET_META=$(jq -r '.metadata.version' "$MARKETPLACE_JSON")

@@ -12,7 +12,7 @@
 # autopilot.json session config, not the state file itself.
 #
 # Resource guard limits:
-#   - ABSOLUTE_MAX_ROUNDS: 20 — hard cap regardless of config
+#   - ABSOLUTE_MAX_NODES: 20 — hard cap regardless of config
 #   - MAX_CONCURRENT_TEAMS: 10 — prevents runaway team spawning
 #   - MAX_TOTAL_AGENTS: 50 — absolute ceiling on total agent count
 
@@ -21,7 +21,7 @@ set -euo pipefail
 STATE_FILE=".otterwise/autopilot-state.json"
 
 # --- Resource guard constants ---
-ABSOLUTE_MAX_ROUNDS=20
+ABSOLUTE_MAX_NODES=20
 MAX_CONCURRENT_TEAMS=10
 MAX_TOTAL_AGENTS=50
 
@@ -76,17 +76,17 @@ if [ -f "$CONFIG_FILE" ] && jq empty "$CONFIG_FILE" 2>/dev/null; then
     exit 1
   fi
 
-  # Max iterations guard
-  MAX_ITER=$(jq -r '.maxIterations // 0' "$CONFIG_FILE")
-  if [ "$MAX_ITER" -gt "$ABSOLUTE_MAX_ROUNDS" ]; then
-    echo "ERROR: maxIterations ($MAX_ITER) in config exceeds absolute safety limit ($ABSOLUTE_MAX_ROUNDS)."
+  # Max nodes guard
+  MAX_N=$(jq -r '.maxNodes // 0' "$CONFIG_FILE")
+  if [ "$MAX_N" -gt "$ABSOLUTE_MAX_NODES" ]; then
+    echo "ERROR: maxNodes ($MAX_N) in config exceeds absolute safety limit ($ABSOLUTE_MAX_NODES)."
     exit 1
   fi
 
-  # Rounds array length guard (append-only, should not exceed max iterations)
-  TOTAL_ROUNDS=$(jq '.rounds | length // 0' "$CONFIG_FILE" 2>/dev/null || echo 0)
-  if [ "$TOTAL_ROUNDS" -gt "$ABSOLUTE_MAX_ROUNDS" ]; then
-    echo "ERROR: rounds array length ($TOTAL_ROUNDS) exceeds absolute safety limit ($ABSOLUTE_MAX_ROUNDS)."
+  # Nodes array length guard (append-only, should not exceed max nodes)
+  TOTAL_NODES=$(jq '.nodes | length // 0' "$CONFIG_FILE" 2>/dev/null || echo 0)
+  if [ "$TOTAL_NODES" -gt "$ABSOLUTE_MAX_NODES" ]; then
+    echo "ERROR: nodes array length ($TOTAL_NODES) exceeds absolute safety limit ($ABSOLUTE_MAX_NODES)."
     exit 1
   fi
 

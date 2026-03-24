@@ -8,8 +8,6 @@ Version: 1.1.0 | Date: 2026-03-23
 
 Otterwise is a Claude Code plugin (OMC pattern) distributed via git. The plugin consists of:
 
-- **MCP Server**: TypeScript, esbuild-bundled to `dist/mcp-server.cjs` (Node 20+)
-- **Python Worker**: `servers/python-repl/worker/worker.py` (Python 3.11+)
 - **Skills**: Markdown specs in `skills/` that Claude follows as instructions
 - **Hooks**: Post-tool-use validators in `hooks/hooks.json`
 - **Cache**: `.otterwise/` directory with research data (gitignored, user-local)
@@ -66,19 +64,11 @@ Phase 2: Pull
       (Do NOT force-pull or rebase automatically)
 
 Phase 3: Post-update steps (in order)
-  a. Dependency refresh:
-     - Check if servers/python-repl/package.json changed:
-       git diff HEAD~{N}..HEAD --name-only | grep package.json
-     - If changed: cd servers/python-repl && npm install
-  b. Rebuild MCP server:
-     - cd servers/python-repl && npm run build
-     - Verify dist/mcp-server.cjs exists and is non-empty
-  c. Config migration (see §3)
-  d. Read new version from plugin.json
+  a. Config migration (see §3)
+  b. Read new version from plugin.json
 
 Phase 4: Verification
   - Confirm new version matches expected remote version
-  - Run quick smoke: node dist/mcp-server.cjs --version (or just check file exists)
   - Report result to user
 ```
 
@@ -179,9 +169,7 @@ The most common migration is adding new MCP tools to `settings.json`. After upda
 
 Current expected tools (v1.2.0):
 ```json
-[
-  "mcp__python-repl__python_repl"
-]
+[]
 ```
 
 ---
@@ -219,20 +207,9 @@ Dependencies
   PASS  node_modules installed
   PASS  packages up to date
 
-MCP Server
-  PASS  index.ts exists
-  PASS  TypeScript compiles
-  PASS  Server process starts
-
-Python Worker
-  PASS  worker.py exists
-  PASS  stdlib imports OK
-  WARN  matplotlib not installed (optional)
-  WARN  pandas not installed (optional)
-
 Configuration
   PASS  .mcp.json valid
-  PASS  settings.json valid (1 tool: python_repl)
+  PASS  settings.json valid
   PASS  plugin.json valid
   PASS  hooks.json valid
 
@@ -240,15 +217,12 @@ Updates
   PASS  Git repo clean
   UPDATE  3 commits behind (v1.1.0 -> v1.2.0)
     |- abc1234 Add new visualization tool
-    |- def5678 Fix kernel timeout handling
+    |- def5678 Fix graph expansion logic
     |- 890abcd Update dependencies
-    Update now? (will run: git pull, npm install, rebuild)
-
-Tests
-  PASS  78/78 tests passing
+    Update now? (will run: git pull)
 
 ────────────────────────────────────────
-Summary: 15 PASS | 2 WARN | 0 FAIL | 1 UPDATE
+Summary: 8 PASS | 0 WARN | 0 FAIL | 1 UPDATE
 
 Status: Ready to use
 ```
@@ -328,35 +302,12 @@ Migration
 
 ---
 
-## 5. Post-Update Rebuild Pipeline
+## 5. Post-Update Verification
 
-### 5.1 Build Steps
-
-After git pull, execute in order:
-
-```
-1. npm install          (if package.json changed)
-   cd servers/python-repl && npm install
-
-2. esbuild bundle       (always, after pull)
-   cd servers/python-repl && npm run build
-   → produces dist/mcp-server.cjs
-
-3. Verify build output
-   Check dist/mcp-server.cjs exists and is non-empty
-```
-
-### 5.2 Build Failure Handling
-
-If npm install fails:
-- Report FAIL with error output
-- Do NOT proceed to build step
-- Suggest: "Try deleting node_modules and running npm install manually"
-
-If esbuild fails:
-- Report FAIL with error output
-- The old dist/mcp-server.cjs remains (git pull updated source, but bundle is stale)
-- Suggest: "Run `cd servers/python-repl && npm run build` manually"
+After git pull, verify:
+- Config files are valid JSON
+- Version consistency across plugin.json and marketplace.json
+- All skill directories have SKILL.md files
 
 ---
 
@@ -424,8 +375,6 @@ All skills in `skills/` must be registered in `plugin.json`. ow-setup validates:
 | Config migration | `skills/ow-setup/SKILL.md` §5 + new §8 | ow-setup skill |
 | Post-update rebuild | `skills/ow-setup/SKILL.md` §6 | ow-setup skill |
 | Terminal UI format | `skills/ow-setup/SKILL.md` Output Format | ow-setup skill |
-| Build pipeline | `servers/python-repl/scripts/build.mjs` | esbuild config |
-| MCP server | `servers/python-repl/src/index.ts` | TypeScript source |
 | Plugin manifest | `.claude-plugin/plugin.json` | Plugin registry |
 | Marketplace config | `.claude-plugin/marketplace.json` | Marketplace listing |
 

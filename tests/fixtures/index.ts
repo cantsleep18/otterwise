@@ -2,33 +2,9 @@
  * Central fixture index — re-exports all test fixtures for convenient imports.
  *
  * Usage:
- *   import { requests, responses, rawJsonLines } from "../fixtures/index.js";
- *   import { createMockBridge, createFailingBridge } from "../fixtures/index.js";
- *   import { notebooks, cells } from "../fixtures/index.js";
  *   import { configs, reports, reportFrontmatter } from "../fixtures/index.js";
  *   import { scenarios, autopilotConfigs, autopilotStates } from "../fixtures/index.js";
  */
-
-// IPC message fixtures
-export {
-  requests,
-  responses,
-  rawJsonLines,
-  TINY_PNG_BASE64,
-} from "./ipc-messages.js";
-
-// Mock PythonBridge
-export {
-  createMockBridge,
-  createFailingBridge,
-  createCrashingBridge,
-  createFigureBridge,
-  createHangingBridge,
-} from "./mock-bridge.js";
-export type { MockBridge } from "./mock-bridge.js";
-
-// Notebook fixtures
-export { notebooks, cells } from "./notebooks.js";
 
 // Config and report fixtures
 export {
@@ -47,7 +23,7 @@ export {
 } from "./autopilot-scenarios.js";
 export type {
   AutopilotConfig,
-  AutopilotRound,
+  AutopilotNode,
   AutopilotState,
   AutopilotScenario,
   StoppingReason,
@@ -65,7 +41,6 @@ export const fixturePaths = {
   sampleDataset: join(__dirname, "sample-dataset.csv"),
   sampleConfig: join(__dirname, "config.json"),
   sampleReport: join(__dirname, "report.md"),
-  sampleNotebook: join(__dirname, "notebook.ipynb"),
   autopilotConfig: join(__dirname, "autopilot-config.json"),
   autopilotStateRunning: join(__dirname, "autopilot-state-running.json"),
   autopilotStateCompleted: join(__dirname, "autopilot-state-completed.json"),

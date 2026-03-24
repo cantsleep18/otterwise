@@ -5,129 +5,156 @@ description: Show the current state of Otterwise research
 
 # /otterwise:status
 
-Display the current research graph status, including auto pilot state when active.
+Display the current research graph status, including autopilot state when active.
 
 ## Workflow
-1. Scan `.otterwise/` for all `report.md` files
-2. Parse YAML frontmatter from each report
-3. Build and display a tree visualization:
 
-```
-Research Graph:
-├── ● basic-profiling (completed, 5 findings)
-│   ├── ● correlation-deep-dive (completed, 4 findings)
-│   │   └── ○ time-series-analysis (in-progress)
-│   └── ● distribution-analysis (completed, 3 findings)
-│       └── ◌ segmentation (pending)
-└── (no more nodes)
-```
-
-Legend: ● completed  ○ in-progress  ◌ pending  ✗ dead-end
-
-4. Show summary stats:
-   - Total nodes
-   - Completed / In-progress / Pending / Dead-end counts
-   - Total findings across all nodes
-   - Dataset info from config.json
-
-5. If `.otterwise/autopilot.json` exists, display the **Auto Pilot Status** section (see below). If it does not exist, skip this step.
-
-6. Mention that `/otterwise:research` can be used to start a new research session if none exists.
+1. Scan `.otterwise/nodes/*/report.md` for all node reports.
+2. Parse YAML frontmatter from each report to reconstruct the DAG.
+3. Build and display the graph visualization (see below).
+4. Show summary stats.
+5. If `.otterwise/autopilot.json` exists, display the **Autopilot Status** section.
+6. If no research exists, mention `/otterwise:research` to start.
 
 ---
 
-## Auto Pilot Status Section
+## Graph Visualization
 
-This section is displayed **only** when `.otterwise/autopilot.json` exists. It appears after the summary stats (step 5).
-
-Read `.otterwise/autopilot.json` for session data (rounds, findings, config). Additionally read `.otterwise/autopilot-state.json` for the live control state if it exists.
-
-### When session is in progress (`completedAt` is null, `rounds` array is non-empty)
-
-Check `.otterwise/autopilot-state.json` for control state:
-
-#### Control state is `"running"` or `"resume"` (or autopilot-state.json is missing)
+Build a tree from the DAG (nodes with `parents: []` are roots). Display using indented tree format:
 
 ```
-Auto Pilot Status:
-  Status: RUNNING (Round {lastRound.number}/{maxIterations})
-  Findings: {totalFindings} total across {rounds.length} rounds
-  Active Branch: {lastRound.teamName}
-  Elapsed: {elapsed since createdAt}
-
-  Round History:
-    Round 1: {rounds[0].teamName} ({findingsCount} findings) - {duration}
-    Round 2: {rounds[1].teamName} ({findingsCount} findings) - {duration}
-    Round 3: {rounds[2].teamName} (in progress)
+Research Graph:
+├── ● basic-profiling (5 findings)
+│   ├── ● correlation-deep-dive (4 findings)
+│   │   └── ○ time-series-analysis (expanding...)
+│   └── ● distribution-analysis (3 findings)
+│       └── ◌ segmentation
+├── ✗ outlier-scan (dead-end)
+└── ● quality-audit (2 findings)
+    └── ● missing-data + correlation-deep-dive (3 findings)  ← cross-branch
 ```
 
-- Calculate elapsed time as the difference between now and `createdAt`
-- For rounds with `status: "completed"`, show findings count and duration (computed from `startedAt` to `completedAt`)
-- For rounds with `status: "in-progress"`, show "(in progress)"
+Legend: `● completed` `○ in-progress` `◌ pending` `✗ dead-end`
 
-#### Control state is `"pause"`
+### Cross-branch nodes
+
+Nodes with multiple parents represent cross-branch combinations. Show them under their first parent with a `← cross-branch` annotation and list all parent names joined with ` + `.
+
+### Node label format
+
+- Completed: `● {name} ({findingsCount} findings)`
+- In-progress: `○ {name} (expanding...)`
+- Pending: `◌ {name}`
+- Dead-end: `✗ {name} (dead-end)`
+
+---
+
+## Summary Stats
+
+After the graph, display:
 
 ```
-Auto Pilot Status:
-  Status: PAUSED (Round {lastRound.number}/{maxIterations})
-  (PAUSED - use /otterwise:autopilot-pause to resume)
-  Findings: {totalFindings} total across {rounds.length} rounds
-  Active Branch: {lastRound.teamName}
+Summary:
+  Total nodes:    7
+  Completed:      5
+  In-progress:    1
+  Pending:        1
+  Dead-ends:      0
+  Total findings: 17
+  DAG depth:      3
+  Dataset:        path/to/data.csv
+```
 
-  Round History:
-    Round 1: {rounds[0].teamName} ({findingsCount} findings) - {duration}
+- **DAG depth**: longest path from any root to any leaf.
+- **Dataset**: read from `.otterwise/config.json`.
+
+---
+
+## Autopilot Status Section
+
+Displayed **only** when `.otterwise/autopilot.json` exists. Appears after summary stats.
+
+Read `.otterwise/autopilot.json` for session data (nodes, status, config). Read `.otterwise/autopilot-state.json` for the live control state if it exists.
+
+### Running (`status` is `"running"`, `autopilot-state.json` command is `"running"` or missing)
+
+```
+Autopilot:
+  Status:     RUNNING
+  Nodes:      {nodes.length} / {maxNodes} max
+  Findings:   {totalFindings} total
+  Expanding:  {last in-progress node name}
+  Elapsed:    {elapsed since createdAt}
+
+  Expansion History:
+    1. ● basic-profiling (5 findings)
+    2. ● correlation-deep-dive (4 findings)
+    3. ○ time-series-analysis (expanding...)
+```
+
+- List nodes in creation order.
+- For completed nodes: show `●` with findings count.
+- For the current in-progress node: show `○` with `(expanding...)`.
+
+### Aborting (`autopilot-state.json` command is `"abort"`)
+
+```
+Autopilot:
+  Status:     ABORTING (will stop after current node)
+  Nodes:      {nodes.length} / {maxNodes} max
+  Findings:   {totalFindings} total (partial)
+
+  Expansion History:
+    1. ● basic-profiling (5 findings)
     ...
 ```
 
-#### Control state is `"abort"`
+### Completed (`status` is `"completed"`, `completedAt` is set)
 
 ```
-Auto Pilot Status:
-  Status: (ABORTING - will stop after current round)
-  Findings: {totalFindings} total (partial results)
+Autopilot:
+  Status:     COMPLETED
+  Reason:     {stoppingReason}
+  Nodes:      {totalNodes}
+  Findings:   {totalFindings} total
+  Report:     .otterwise/autopilot-report.md
 
-  Round History:
-    Round 1: {rounds[0].teamName} ({findingsCount} findings) - {duration}
+  Expansion History:
+    1. ● basic-profiling (5 findings)
+    2. ● correlation-deep-dive (4 findings)
+    3. ● time-series-analysis (3 findings)
     ...
 ```
 
-### When session is completed (`completedAt` is set)
+Stopping reasons: `"max-nodes"`, `"exhausted"`, `"user-abort"`
+
+### Aborted (`stoppingReason` is `"user-abort"`)
 
 ```
-Auto Pilot Status:
-  Status: COMPLETED ({totalRounds} rounds)
-  Stopping Reason: {stoppingReason}
-  Findings: {totalFindings} total
-  Report: .otterwise/autopilot-report.md
+Autopilot:
+  Status:     ABORTED
+  Nodes:      {totalNodes} (partial)
+  Findings:   {totalFindings} total
+  Report:     .otterwise/autopilot-report.md
 
-  Round History:
-    Round 1: {rounds[0].teamName} ({findingsCount} findings) - {duration}
-    Round 2: {rounds[1].teamName} ({findingsCount} findings) - {duration}
+  Expansion History:
+    1. ● basic-profiling (5 findings)
     ...
 ```
 
-- Show the `stoppingReason` (e.g., "max-iterations", "diminishing-returns", "goals-met", "confidence-threshold", "user-abort")
-- Point user to `.otterwise/autopilot-report.md` for full results
+---
 
-### When `stoppingReason` is `"user-abort"`
+## Data Sources
 
-```
-Auto Pilot Status:
-  Status: (ABORTED)
-  Findings: {totalFindings} total (partial results)
-  Report: .otterwise/autopilot-report.md
+**`.otterwise/nodes/{node-id}/report.md`** -- DAG source of truth via YAML frontmatter:
+- `id`, `name`, `parents` (array of parent IDs), `status`, `findingsCount`, `dataset`
 
-  Round History:
-    Round 1: {rounds[0].teamName} ({findingsCount} findings) - {duration}
-    ...
-```
+**`.otterwise/config.json`** -- dataset path, goals (immutable after init)
 
-### Data Sources Reference
+**`.otterwise/autopilot.json`** -- autopilot session state:
+- `maxNodes`, `status`, `totalFindings`, `stoppingReason`, `createdAt`, `completedAt`
+- `nodes[]`: each with `id`, `parentIds`, `status`, `findingsCount`, `startedAt`, `completedAt`
 
-**`.otterwise/autopilot.json`** — session config and round history:
-- `maxIterations`, `totalRounds`, `totalFindings`, `stoppingReason`, `createdAt`, `completedAt`
-- `rounds[]`: each with `number`, `reportId`, `parentId`, `status`, `teamName`, `findingsCount`, `startedAt`, `completedAt`
-
-**`.otterwise/autopilot-state.json`** — live control signal (may not exist):
-- `command`: `"running"` | `"pause"` | `"resume"` | `"abort"`
+**`.otterwise/autopilot-state.json`** -- live control signal (may not exist):
+- `command`: `"running"` | `"abort"` | `"completed"`
 - `updatedAt`, `reason`

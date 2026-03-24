@@ -8,7 +8,7 @@
   "seedPhrase": "autopilot-20260323-143015",
   "customStoppingCriteria": [],
   "stopping": {
-    "minFindingsPerRound": 2,
+    "minFindingsPerNode": 2,
     "maxDeadEndRatio": 0.6
   },
   "scope": {
@@ -17,12 +17,12 @@
     "depthLimit": 4
   },
   "notifications": {
-    "progressUpdates": "per-round"
+    "progressUpdates": "per-node"
   },
   "createdAt": "2026-03-23T14:30:15.000Z",
   "completedAt": null,
   "stoppingReason": null,
-  "totalRounds": 0,
+  "totalNodes": 0,
   "totalFindings": 0,
-  "rounds": []
+  "nodes": []
 }
