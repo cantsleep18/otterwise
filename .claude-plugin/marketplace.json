@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Autonomous compound research platform for Claude Code",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "plugins": [
     {
       "name": "otterwise",
       "source": "./",
       "description": "Autonomous compound research platform with auto-update — spawns agent teams to analyze datasets with a graph of discoveries. Includes real-time graph visualization dashboard, setup diagnostics, and seamless self-updating.",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "productivity",
       "tags": [
         "research",

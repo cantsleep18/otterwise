@@ -52,27 +52,34 @@ Read `.otterwise/update-check.json` — if checked < 1 hour ago, use cached resu
 
 #### Execute Update (after user confirms)
 
-1. Record `PRE_UPDATE_SHA`
+1. Record `PRE_UPDATE_SHA` and `OLD_VERSION` (from `.claude-plugin/plugin.json`)
 2. If dirty: `git stash push -m "ow-setup: auto-stash before update"`
 3. `git pull origin main --ff-only` (FAIL if diverged)
 4. `bash scripts/secure-update.sh post-update` (validates hooks, files, secrets)
-5. Verify new version from plugin.json
-6. Pop stash if created
-7. Write updated cache
+5. Read `NEW_VERSION` from `.claude-plugin/plugin.json`
+6. `bash scripts/migrate.sh` (schema migration for `.otterwise/` data files)
+7. Clear plugin cache: `rm -rf ~/.claude/plugins/cache/otterwise/`
+8. Pop stash if created
+9. Write updated `.otterwise/update-check.json`
 
 On failure: `git reset --hard $PRE_UPDATE_SHA`, pop stash, leave cache stale for re-check.
 
-### 4. Post-Update Migration (conditional)
+### 4. Post-Update Verification (conditional)
 
-Only if update was applied and `.otterwise/` exists. Each data file has `schemaVersion` (default 1).
+Only runs if an update was applied (step 3 above).
 
-**Files**: `config.json`, `autopilot.json`, `autopilot-state.json`
+1. Re-run all diagnostic checks (Environment, Configuration) against the new version
+2. Verify `NEW_VERSION` > `OLD_VERSION` (semver)
+3. Report: `"Updated from {OLD_VERSION} to {NEW_VERSION}. Plugin cache cleared."`
+4. Tell user: **"Restart your Claude Code session to load the new version."**
 
-Migration procedure: backup to `{file}.backup-v{old}`, apply migrations sequentially, verify JSON, restore on failure.
+#### Plugin Cache
 
-**Safety rules**: additive only, preserve `nodes` array (append-only), backup first, skip if absent.
+Claude Code caches plugin files at `~/.claude/plugins/cache/otterwise/`. After `git pull` updates the source, this cache is stale. Step 7 above removes it so Claude Code reloads from source on next session start.
 
-Standalone: `bash scripts/migrate.sh` (supports `--dry-run`)
+#### Migration
+
+If `.otterwise/` exists, `scripts/migrate.sh` handles schema migration for data files (`config.json`, `autopilot.json`, `autopilot-state.json`). Safety rules: additive only, preserve `nodes` array (append-only), backup first, skip if absent. Supports `--dry-run`.
 
 ## Output Format
 
@@ -128,12 +135,29 @@ Status: Ready to use
 **Update available variant:**
 
 ```
+Updates
+  PASS  Git repo clean
+  PASS  Origin verified (github.com/cantsleep18/otterwise)
   UPDATE  3 commits behind (v1.2.0 -> v1.3.0)
     |- abc1234 Add new research capability
     |- def5678 Fix autopilot node selection
 ```
 
 Then ask: **"Update now?"**
+
+**After successful update:**
+
+```
+  DONE  Pulled 3 commits (ff-only)
+  DONE  Security post-check passed
+  DONE  Migration complete (no changes needed)
+  DONE  Plugin cache cleared (~/.claude/plugins/cache/otterwise/)
+  PASS  Re-verified: all checks pass on v1.3.0
+
+────────────────────────────────────────
+Updated from v1.2.0 to v1.3.0. Plugin cache cleared.
+⚠ Restart your Claude Code session to load the new version.
+```
 
 **Auto-fix:** show FAIL then DONE on consecutive lines within the same section.
 

@@ -55,6 +55,33 @@ merge_settings() {
   local CURRENT_TOOLS
   CURRENT_TOOLS=$(jq -r '.permissions.allow[]' "$SETTINGS" 2>/dev/null || echo "")
 
+  # Remove stale MCP tool permissions (mcp__* entries from old REPL server)
+  local STALE_MCP=()
+  while IFS= read -r perm; do
+    [ -z "$perm" ] && continue
+    if [[ "$perm" == mcp__* ]]; then
+      STALE_MCP+=("$perm")
+    fi
+  done <<< "$CURRENT_TOOLS"
+
+  if [ ${#STALE_MCP[@]} -gt 0 ]; then
+    info "Removing ${#STALE_MCP[@]} stale MCP tool permission(s):"
+    for perm in "${STALE_MCP[@]}"; do
+      info "  - $perm"
+    done
+    if [ "$DRY_RUN" = false ]; then
+      jq '[.permissions.allow[] | select(startswith("mcp__") | not)] as $cleaned | .permissions.allow = $cleaned' \
+        "$SETTINGS" > "${SETTINGS}.tmp"
+      mv "${SETTINGS}.tmp" "$SETTINGS"
+      ok "Removed stale MCP permissions"
+      changed
+      # Re-read after cleanup
+      CURRENT_TOOLS=$(jq -r '.permissions.allow[]' "$SETTINGS" 2>/dev/null || echo "")
+    else
+      info "(dry-run) Would remove stale MCP permissions"
+    fi
+  fi
+
   # Security: check for unauthorized permissions (not in canonical list)
   local UNAUTHORIZED=()
   while IFS= read -r perm; do
@@ -87,7 +114,7 @@ merge_settings() {
   done
 
   if [ ${#MISSING[@]} -eq 0 ] && [ ${#UNAUTHORIZED[@]} -eq 0 ]; then
-    ok "settings.json has all ${#CANONICAL_TOOLS[@]} tools (no unauthorized)"
+    ok "settings.json permissions clean (no stale or unauthorized entries)"
     return
   fi
 
@@ -107,7 +134,7 @@ merge_settings() {
 
   jq --argjson tools "$JSON_ARRAY" '.permissions.allow = ($tools | unique)' "$SETTINGS" > "${SETTINGS}.tmp"
   mv "${SETTINGS}.tmp" "$SETTINGS"
-  ok "settings.json updated with ${#CANONICAL_TOOLS[@]} tools"
+  ok "settings.json updated"
   changed
 }
 
@@ -284,7 +311,7 @@ validate_cache() {
     while [ "$schema" -lt "$EXPECTED_SCHEMA" ]; do
       local next=$((schema + 1))
       case "${filename}:v${schema}:v${next}" in
-        config.json:v1:v2|autopilot-state.json:v1:v2|autopilot-config.json:v1:v2)
+        config.json:v1:v2|autopilot-state.json:v1:v2|autopilot.json:v1:v2)
           # v1 → v2: add schemaVersion and pluginVersion
           jq --arg pv "$PLUGIN_VERSION" \
             '. + {"schemaVersion": 2, "pluginVersion": $pv}' \
@@ -336,6 +363,205 @@ validate_cache() {
   fi
 }
 
+# --- 5. Version migration: 1.2.0 → 1.3.0 -----------------------------------
+#
+# Handles the round-based → graph-based autopilot redesign:
+#   - round-* directories → nodes/ structure
+#   - autopilot.json rounds[] → nodes[] with parentIds
+#   - Remove deprecated maxRounds/maxNodes fields
+#   - autopilot-state.json command "completed" → "aborted"
+#   - Remove autopilot-report.md (final report concept removed)
+
+migrate_v120_to_v130() {
+  heading "Version Migration (1.2.0 → 1.3.0)"
+
+  local CACHE_DIR="$PLUGIN_ROOT/.otterwise"
+  if [ ! -d "$CACHE_DIR" ]; then
+    info "No .otterwise/ directory — skipping version migration"
+    return
+  fi
+
+  need jq || return
+
+  # 5a. Rename round-* directories to nodes/ structure
+  local ROUND_DIRS=()
+  for dir in "$CACHE_DIR"/round-*/; do
+    [ -d "$dir" ] || continue
+    ROUND_DIRS+=("$dir")
+  done
+
+  if [ ${#ROUND_DIRS[@]} -gt 0 ]; then
+    info "Found ${#ROUND_DIRS[@]} legacy round-* directory(s) to migrate"
+    if [ "$DRY_RUN" = false ]; then
+      mkdir -p "$CACHE_DIR/nodes"
+      for dir in "${ROUND_DIRS[@]}"; do
+        local round_name
+        round_name=$(basename "$dir")
+        # Extract round number: round-1 → node-1, round-02 → node-02
+        local node_name="${round_name/round-/node-}"
+        local target="$CACHE_DIR/nodes/$node_name"
+        if [ -d "$target" ]; then
+          warn "Target already exists, skipping: nodes/$node_name"
+          continue
+        fi
+        mv "$dir" "$target"
+        info "  Moved $round_name → nodes/$node_name"
+      done
+      ok "Migrated round directories to nodes/ structure"
+      changed
+    else
+      info "(dry-run) Would migrate round-* dirs to nodes/"
+    fi
+  else
+    ok "No legacy round-* directories found"
+  fi
+
+  # 5b. Migrate autopilot.json: rounds[] → nodes[], remove maxRounds/maxNodes
+  local AP_FILE="$CACHE_DIR/autopilot.json"
+  if [ -f "$AP_FILE" ] && jq empty "$AP_FILE" 2>/dev/null; then
+    local AP_CHANGED=false
+
+    # Convert rounds[] to nodes[] if present
+    if jq -e '.rounds' "$AP_FILE" >/dev/null 2>&1; then
+      info "autopilot.json has legacy rounds[] — converting to nodes[]"
+      if [ "$DRY_RUN" = false ]; then
+        # Convert each round entry: add parentIds array based on position
+        # First round gets parentIds:[], subsequent get parentIds:[previous-id]
+        jq '
+          if .rounds then
+            .nodes = [.rounds | to_entries[] | .value + (
+              if .key == 0 then {parentIds: []}
+              else {parentIds: [(.key - 1) as $prev | $input.rounds[$prev].id // ""]}
+              end
+            ) | del(.round) ] |
+            del(.rounds)
+          else . end
+        ' "$AP_FILE" > "${AP_FILE}.tmp" 2>/dev/null
+        if [ $? -eq 0 ] && jq empty "${AP_FILE}.tmp" 2>/dev/null; then
+          mv "${AP_FILE}.tmp" "$AP_FILE"
+          AP_CHANGED=true
+          info "  Converted rounds[] → nodes[] with parentIds"
+        else
+          rm -f "${AP_FILE}.tmp"
+          warn "Failed to convert rounds[] — leaving unchanged"
+        fi
+      else
+        info "(dry-run) Would convert rounds[] to nodes[]"
+      fi
+    fi
+
+    # Remove deprecated maxRounds field
+    if jq -e '.maxRounds' "$AP_FILE" >/dev/null 2>&1; then
+      info "Removing deprecated maxRounds from autopilot.json"
+      if [ "$DRY_RUN" = false ]; then
+        jq 'del(.maxRounds)' "$AP_FILE" > "${AP_FILE}.tmp"
+        mv "${AP_FILE}.tmp" "$AP_FILE"
+        AP_CHANGED=true
+      else
+        info "(dry-run) Would remove maxRounds"
+      fi
+    fi
+
+    # Remove deprecated maxNodes field
+    if jq -e '.maxNodes' "$AP_FILE" >/dev/null 2>&1; then
+      info "Removing deprecated maxNodes from autopilot.json"
+      if [ "$DRY_RUN" = false ]; then
+        jq 'del(.maxNodes)' "$AP_FILE" > "${AP_FILE}.tmp"
+        mv "${AP_FILE}.tmp" "$AP_FILE"
+        AP_CHANGED=true
+      else
+        info "(dry-run) Would remove maxNodes"
+      fi
+    fi
+
+    if [ "$AP_CHANGED" = true ]; then
+      ok "autopilot.json migrated to 1.3.0 schema"
+      changed
+    else
+      ok "autopilot.json already compatible with 1.3.0"
+    fi
+  fi
+
+  # 5c. Fix autopilot-state.json: "completed" → "aborted"
+  local STATE_FILE="$CACHE_DIR/autopilot-state.json"
+  if [ -f "$STATE_FILE" ] && jq empty "$STATE_FILE" 2>/dev/null; then
+    local STATE_CMD
+    STATE_CMD=$(jq -r '.command // empty' "$STATE_FILE")
+    if [ "$STATE_CMD" = "completed" ]; then
+      info "autopilot-state.json has deprecated command 'completed' — changing to 'aborted'"
+      if [ "$DRY_RUN" = false ]; then
+        jq '.command = "aborted"' "$STATE_FILE" > "${STATE_FILE}.tmp"
+        mv "${STATE_FILE}.tmp" "$STATE_FILE"
+        ok "autopilot-state.json command updated: completed → aborted"
+        changed
+      else
+        info "(dry-run) Would change command 'completed' to 'aborted'"
+      fi
+    else
+      ok "autopilot-state.json command is valid ('$STATE_CMD')"
+    fi
+  fi
+
+  # 5d. Remove autopilot-report.md (final report concept removed in 1.3.0)
+  local REPORT_FILE="$CACHE_DIR/autopilot-report.md"
+  if [ -f "$REPORT_FILE" ]; then
+    info "Removing deprecated autopilot-report.md (final report concept removed)"
+    if [ "$DRY_RUN" = false ]; then
+      rm -f "$REPORT_FILE"
+      ok "Removed autopilot-report.md"
+      changed
+    else
+      info "(dry-run) Would remove autopilot-report.md"
+    fi
+  fi
+}
+
+# --- 6. Clean up design docs from .otterwise/ ------------------------------
+#
+# .otterwise/ should only contain research data (config, state, nodes/).
+# Design docs and planning files are not research artifacts.
+
+cleanup_design_docs() {
+  heading "Design Doc Cleanup"
+
+  local CACHE_DIR="$PLUGIN_ROOT/.otterwise"
+  if [ ! -d "$CACHE_DIR" ]; then
+    return
+  fi
+
+  # Known non-research files that should not live in .otterwise/
+  # These are design docs created during development, not user research data.
+  local STALE_DOCS=(
+    "STOPPING_CONDITIONS_FRAMEWORK.md"
+    "RESOURCE_MANAGEMENT_FINDINGS.md"
+    "DAG_INTELLIGENCE_FRAMEWORK.md"
+    "STATE_MANAGEMENT_DESIGN.md"
+    "node-selection-algorithm-design.md"
+    "refactor-manifest.md"
+  )
+
+  local REMOVED=0
+  for doc in "${STALE_DOCS[@]}"; do
+    local filepath="$CACHE_DIR/$doc"
+    if [ -f "$filepath" ]; then
+      info "Removing design doc: .otterwise/$doc"
+      if [ "$DRY_RUN" = false ]; then
+        rm -f "$filepath"
+        REMOVED=$((REMOVED + 1))
+      else
+        info "(dry-run) Would remove .otterwise/$doc"
+      fi
+    fi
+  done
+
+  if [ "$REMOVED" -gt 0 ]; then
+    ok "Removed $REMOVED design doc(s) from .otterwise/"
+    changed
+  elif [ "$DRY_RUN" = false ]; then
+    ok "No stale design docs in .otterwise/"
+  fi
+}
+
 # --- 7. Validate plugin.json paths ------------------------------------------
 
 validate_plugin() {
@@ -382,7 +608,9 @@ main() {
   merge_settings
   merge_hooks
   merge_mcp
+  migrate_v120_to_v130
   validate_cache
+  cleanup_design_docs
   validate_plugin
 
   heading "Summary"

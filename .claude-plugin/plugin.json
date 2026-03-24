@@ -1,22 +1,62 @@
 {
   "name": "otterwise",
   "description": "Autonomous compound research platform — spawns agent teams to analyze datasets with a graph of discoveries",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": {
     "name": "cantsleep18"
   },
   "repository": "https://github.com/cantsleep18/otterwise",
   "homepage": "https://github.com/cantsleep18/otterwise",
   "license": "MIT",
-  "keywords": ["research", "data-science", "multi-agent", "analysis", "visualization"],
+  "keywords": [
+    "research",
+    "data-science",
+    "multi-agent",
+    "analysis",
+    "visualization"
+  ],
   "skills": [
-    { "name": "research", "description": "Start a new Otterwise research session on a dataset", "path": "skills/research" },
-    { "name": "continue", "description": "Continue and expand an existing Otterwise research session", "path": "skills/continue" },
-    { "name": "status", "description": "Show the current state of Otterwise research", "path": "skills/status" },
-    { "name": "autopilot", "description": "Run autonomous infinite research on a dataset", "path": "skills/autopilot" },
-    { "name": "autopilot-pause", "description": "Pause or resume a running autopilot session", "path": "skills/autopilot-pause" },
-    { "name": "autopilot-abort", "description": "Abort a running autopilot session", "path": "skills/autopilot-abort" },
-    { "name": "ow-setup", "description": "Setup, diagnose, and update Otterwise", "path": "skills/ow-setup" },
-    { "name": "dashboard", "description": "Launch or stop the research graph visualization dashboard", "path": "skills/dashboard" }
-  ]
+    {
+      "name": "research",
+      "description": "Start a new Otterwise research session on a dataset",
+      "path": "skills/research"
+    },
+    {
+      "name": "continue",
+      "description": "Continue and expand an existing Otterwise research session",
+      "path": "skills/continue"
+    },
+    {
+      "name": "status",
+      "description": "Show the current state of Otterwise research",
+      "path": "skills/status"
+    },
+    {
+      "name": "autopilot",
+      "description": "Run autonomous infinite research on a dataset",
+      "path": "skills/autopilot"
+    },
+    {
+      "name": "autopilot-pause",
+      "description": "Pause or resume a running autopilot session",
+      "path": "skills/autopilot-pause"
+    },
+    {
+      "name": "autopilot-abort",
+      "description": "Abort a running autopilot session",
+      "path": "skills/autopilot-abort"
+    },
+    {
+      "name": "ow-setup",
+      "description": "Setup, diagnose, and update Otterwise",
+      "path": "skills/ow-setup"
+    },
+    {
+      "name": "dashboard",
+      "description": "Launch or stop the research graph visualization dashboard",
+      "path": "skills/dashboard"
+    }
+  ],
+  "hooks": "hooks/hooks.json",
+  "settings": "settings.json"
 }

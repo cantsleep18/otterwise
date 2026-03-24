@@ -19,7 +19,7 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 ### From Marketplace
 
 ```bash
-claude extension add otterwise
+claude extension add cantsleep18/otterwise
 ```
 
 ### From GitHub (Self-Updating)
@@ -59,7 +59,7 @@ Otterwise updates itself. Run `/otterwise:ow-setup` at any time -- it detects ne
 
 See [Auto-Update](#auto-update) for details on the update lifecycle.
 
-For more information about plugin architecture and how updates work, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For more information about plugin architecture and how updates work, see [ARCHITECTURE.md](.claude-plugin/ARCHITECTURE.md).
 
 ---
 
@@ -295,7 +295,7 @@ Claude Code caches the plugin. Restart your Claude Code session:
 2. Reopen Claude Code
 3. Run a skill to trigger reload
 
-For more details on how caching and updates work, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For more details on how caching and updates work, see [ARCHITECTURE.md](.claude-plugin/ARCHITECTURE.md).
 
 ---
 
