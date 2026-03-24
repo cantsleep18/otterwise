@@ -22,8 +22,6 @@ otterwise/
 │   ├── autopilot-abort/         # Stop autopilot
 │   ├── ow-setup/                # Setup, diagnose, update plugin
 │   └── dashboard/               # Launch visualization dashboard
-├── servers/                     # MCP servers
-│   └── python-repl/             # Bundled Python execution server
 ├── hooks/                       # Event handlers
 │   └── hooks.json               # PostToolUse validation hooks
 ├── scripts/                     # Utilities (called from ow-setup)
@@ -36,7 +34,7 @@ otterwise/
 ├── dashboard/                   # Research graph visualization UI
 ├── tests/                       # Integration tests
 ├── settings.json                # Tool permissions (empty, no MCP tools)
-├── .mcp.json                    # MCP server config (empty, server bundled)
+├── .mcp.json                    # MCP server config (empty, REPL removed)
 ├── CLAUDE.md                    # Project instructions (this repo)
 ├── ARCHITECTURE.md              # This file
 ├── README.md                    # User guide
@@ -65,8 +63,9 @@ Claude Code:
 ~/.claude/plugins/cache/otterwise/otterwise/1.3.0/
 ├── .claude-plugin/
 ├── skills/
-├── servers/python-repl/
+├── hooks/
 ├── scripts/
+├── dashboard/
 └── ...
 ```
 
@@ -328,51 +327,29 @@ Frontmatter (YAML) is validated by ow-setup:
 - `${CLAUDE_SESSION_ID}` — Current session ID
 - Standard shell variables (USER, PWD, etc.)
 
-## MCP Server Integration
+## MCP & Tool Permissions
 
-### python-repl Server
-
-Located in `servers/python-repl/`, provides Python code execution.
+The Python REPL MCP server was removed after v1.2.0. Claude Code runs Python via skill execution, not MCP.
 
 **Config (.mcp.json):**
 ```json
 {
-  "mcpServers": {
-    "python-repl": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/python-repl/dist/mcp-server.cjs"]
-    }
-  }
+  "mcpServers": {}
 }
 ```
 
-**Distribution:**
-- Source: TypeScript in `servers/python-repl/src/`
-- Built: `npm run build` creates bundled `dist/mcp-server.cjs`
-- Single CJS file bundled via esbuild (zero npm install at runtime)
-- Python worker uses only stdlib (no pip install)
-
-### Tool Permissions (settings.json)
-
+**Tool Permissions (settings.json):**
 ```json
 {
   "permissions": {
-    "allow": []  // Empty: no MCP tools exposed to Claude Code
+    "allow": []
   }
 }
 ```
 
-REPL removed after v1.2.0; Claude Code runs Python via skill execution, not MCP.
+No MCP tools are exposed. The `settings.json` permissions list is empty.
 
 ## Build & Release
-
-### Build
-
-```bash
-cd servers/python-repl
-npm install
-node scripts/build.mjs    # Creates dist/mcp-server.cjs
-```
 
 ### Version Bump
 
