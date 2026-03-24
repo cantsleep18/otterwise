@@ -2,16 +2,12 @@ import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ResearchNode } from '../types';
-import { NotebookPreview } from './NotebookPreview';
 
 interface Props {
   node: ResearchNode | null;
 }
 
-type Tab = 'report' | 'notebooks';
-
 export function ReportPanel({ node }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('report');
   const [reportContent, setReportContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +45,6 @@ export function ReportPanel({ node }: Props) {
     };
   }, [node?.folderPath]);
 
-  // Reset to report tab when node changes
-  useEffect(() => {
-    setActiveTab('report');
-  }, [node?.id]);
-
   if (!node) {
     return (
       <div className="flex items-center justify-center h-full text-zinc-600 text-sm">
@@ -64,60 +55,42 @@ export function ReportPanel({ node }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab bar */}
-      <div className="flex border-b border-zinc-800 bg-zinc-900 flex-shrink-0">
-        <button
-          onClick={() => setActiveTab('report')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'report'
-              ? 'text-zinc-100 border-b-2 border-teal-500'
-              : 'text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          Report
-        </button>
-        <button
-          onClick={() => setActiveTab('notebooks')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'notebooks'
-              ? 'text-zinc-100 border-b-2 border-teal-500'
-              : 'text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          Notebooks
-        </button>
+      {/* Header */}
+      <div className="flex items-center border-b border-zinc-800 bg-zinc-900 flex-shrink-0 px-4 py-2">
+        <span className="text-sm font-medium text-zinc-100">{node.name}</span>
+        {node.parentIds.length > 0 && (
+          <span className="ml-2 text-xs text-zinc-500">
+            {node.parentIds.length === 1 ? '1 parent' : `${node.parentIds.length} parents`}
+          </span>
+        )}
       </div>
 
-      {/* Tab content */}
+      {/* Report content */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'report' && (
-          <div className="p-4">
-            {loading && (
-              <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
-                Loading report...
-              </div>
-            )}
-            {error && (
-              <div className="flex items-center justify-center py-8 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-            {!loading && !error && reportContent && (
-              <div className="otterwise-markdown">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {reportContent}
-                </ReactMarkdown>
-              </div>
-            )}
-            {!loading && !error && !reportContent && (
-              <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
-                No report content available
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'notebooks' && <NotebookPreview node={node} />}
+        <div className="p-4">
+          {loading && (
+            <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
+              Loading report...
+            </div>
+          )}
+          {error && (
+            <div className="flex items-center justify-center py-8 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+          {!loading && !error && reportContent && (
+            <div className="otterwise-markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {reportContent}
+              </ReactMarkdown>
+            </div>
+          )}
+          {!loading && !error && !reportContent && (
+            <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
+              No report content available
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Markdown styles for dark theme */}
@@ -239,28 +212,6 @@ export function ReportPanel({ node }: Props) {
         .otterwise-markdown img {
           max-width: 100%;
           border-radius: 0.375rem;
-        }
-
-        /* Notebook HTML output (pandas tables, etc.) */
-        .notebook-html-output table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .notebook-html-output th {
-          background-color: rgb(39 39 42);
-          color: rgb(228 228 231);
-          font-weight: 600;
-          text-align: left;
-          padding: 0.375rem 0.5rem;
-          border: 1px solid rgb(63 63 70);
-        }
-        .notebook-html-output td {
-          padding: 0.375rem 0.5rem;
-          border: 1px solid rgb(63 63 70);
-          color: rgb(212 212 216);
-        }
-        .notebook-html-output tr:nth-child(even) {
-          background-color: rgb(39 39 42 / 0.5);
         }
       `}</style>
     </div>

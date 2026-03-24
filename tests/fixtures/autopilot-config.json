@@ -1,16 +1,10 @@
 {
   "$schema": "autopilot-config",
-  "maxIterations": 5,
+  "status": "running",
   "maxConcurrentTeammates": 3,
-  "stoppingThreshold": 0.85,
   "researchTimeoutMinutes": 30,
   "explorationStrategy": "balanced",
   "seedPhrase": "autopilot-20260323-143015",
-  "customStoppingCriteria": [],
-  "stopping": {
-    "minFindingsPerNode": 2,
-    "maxDeadEndRatio": 0.6
-  },
   "scope": {
     "focusAreas": null,
     "excludeTopics": null,
@@ -20,8 +14,6 @@
     "progressUpdates": "per-node"
   },
   "createdAt": "2026-03-23T14:30:15.000Z",
-  "completedAt": null,
-  "stoppingReason": null,
   "totalNodes": 0,
   "totalFindings": 0,
   "nodes": []

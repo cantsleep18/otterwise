@@ -1,11 +1,11 @@
 ---
 name: autopilot
-description: Run autonomous research that grows a DAG of investigation nodes until convergence
+description: Run autonomous research that grows a DAG of investigation nodes indefinitely
 ---
 
 # /otterwise:autopilot
 
-Run a fully autonomous research loop that continuously expands a directed acyclic graph (DAG). Each iteration adds a node — exploring a new direction, deepening a promising finding, or combining insights across branches. The loop runs until the graph converges, hits its safety cap, or the user aborts. You (the main Claude session) ARE the research lead — do NOT delegate leadership to a sub-agent.
+Run a fully autonomous research loop that continuously expands a directed acyclic graph (DAG). Each iteration adds a node -- exploring a new direction, deepening a promising finding, or combining insights across branches. The loop runs forever until the user aborts. You (the main Claude session) ARE the research lead -- do NOT delegate leadership to a sub-agent.
 
 ## Usage
 
@@ -13,25 +13,30 @@ Run a fully autonomous research loop that continuously expands a directed acycli
 /otterwise:autopilot /path/to/dataset.csv "Optional research goals"
 ```
 
+Re-running on an existing `.otterwise/` directory resumes from the current state.
+
 ## Workflow
 
 ```
-INIT ──> EVALUATE ──> EXPAND ──> EVALUATE ──> ... ──> FINALIZE
- │          │            │          │                      │
- │       check stop   TeamCreate   │                  write report
- │       conditions   TaskCreate   │
- │       select       Agent x K   │
- │       candidate    TeamDelete  │
- │                                │
- Node 0              Node 1+     loop back
+           ┌──────────────────────────────────┐
+           v                                  │
+INIT ──> EVALUATE ──> EXPAND ──> EVALUATE ──> EXPAND ──> ...
+ or                     │
+RESUME                  │
+ │                   TeamCreate
+ │                   TaskCreate
+ │                   Agent x K
+ │                   TeamDelete
+ │
+ Node 0 (seed)       Node 1+
 ```
 
-## Phase 1: INIT
+## Phase 1: INIT (no existing nodes)
 
-1. Parse user input: dataset path, optional goals, optional config overrides.
+1. Parse user input: dataset path, optional goals.
 2. Create `.otterwise/` directory. Write `config.json` (dataset, goals) and `autopilot.json`:
    ```json
-   { "maxNodes": 15, "status": "running", "nodes": [] }
+   { "status": "running", "nodes": [] }
    ```
 3. Write `autopilot-state.json` with `command: "running"`.
 4. Explore the dataset inline: read structure, fields, types, size.
@@ -40,26 +45,34 @@ INIT ──> EVALUATE ──> EXPAND ──> EVALUATE ──> ... ──> FINALI
 7. Synthesize findings into `.otterwise/nodes/{node-id}/report.md` with frontmatter.
 8. Append node metadata to `autopilot.json`. Proceed to EVALUATE.
 
+## Phase 1 (alt): RESUME (existing nodes found)
+
+1. Glob `.otterwise/nodes/*/report.md`. Parse YAML frontmatter to rebuild the DAG.
+2. Delete incomplete node folders (those without `report.md`).
+3. Sync `autopilot.json` nodes array with what exists on disk.
+4. Set `autopilot-state.json` command to `"running"`.
+5. Proceed to EVALUATE.
+
 ## Phase 2: EVALUATE
 
-1. Read `autopilot-state.json`. If `command === "abort"`, jump to FINALIZE.
-2. Check stopping conditions:
-   - `nodes.length >= maxNodes` (default 15) --> FINALIZE, reason: "max-nodes"
-   - No viable expansion candidates --> FINALIZE, reason: "exhausted"
-   - Convergence: last 2+ nodes added fewer than 2 new findings each --> FINALIZE, reason: "converged"
-   - `command === "abort"` --> FINALIZE, reason: "user-abort"
-3. Glob all `.otterwise/nodes/*/report.md`. Parse YAML frontmatter to build the DAG.
-4. Extract expansion candidates from all reports:
+1. Read `autopilot-state.json`. If `command === "abort"`, set `autopilot.json` status to `"aborted"` and stop.
+2. Glob all `.otterwise/nodes/*/report.md`. Parse YAML frontmatter to rebuild the DAG.
+3. Extract expansion candidates from all reports:
    - Open questions and suggested follow-ups
    - Cross-branch combinations: pairs of branches whose findings suggest a testable hypothesis
    - Dead-end pivots: failed approaches that hint at alternative directions
-5. Select the single most promising candidate based on:
+4. Select the single most promising candidate based on:
    - Richness of parent findings worth deepening
    - Unexplored potential (not already covered by other branches)
    - Alignment with user's research goals
-   - Cross-branch synergy: combining branches that would yield insights neither could find alone
-6. If no candidate is meaningfully better than existing knowledge, stop (reason: "exhausted").
-7. Proceed to EXPAND with the selected candidate.
+   - Cross-branch synergy: combining branches that yield insights neither could find alone
+5. **If no obvious candidates remain**: do NOT stop. Instead, synthesize new candidates:
+   - Mix insights from unrelated branches to form novel hypotheses
+   - Combine data from the most distant nodes in the DAG
+   - Revisit dead ends with new context gained from later nodes
+   - Try completely new analytical angles on the raw dataset
+   - Challenge or invert prior assumptions
+6. Proceed to EXPAND with the selected candidate.
 
 ## Phase 3: EXPAND
 
@@ -70,23 +83,6 @@ INIT ──> EVALUATE ──> EXPAND ──> EVALUATE ──> ... ──> FINALI
 3. Synthesize findings into `.otterwise/nodes/{node-id}/report.md` with frontmatter including `parentIds`.
 4. Append node metadata to `autopilot.json`.
 5. Return to EVALUATE.
-
-## Phase 4: FINALIZE
-
-1. Read all `.otterwise/nodes/*/report.md` files. Build the complete DAG.
-2. Group findings by theme across all branches.
-3. Identify cross-branch insights: patterns that only emerged from combining branches.
-4. Write `.otterwise/autopilot-report.md` containing:
-   - Quick facts: total nodes, findings count, stopping reason
-   - Investigation narrative: how the research evolved, key branching decisions, turning points
-   - Research graph: Mermaid flowchart of the DAG (`-->` for single-parent, `-.->` for cross-branch)
-   - Key findings grouped by theme (cite node IDs)
-   - Cross-branch insights
-   - Open questions for future investigation
-   - Statistics table
-5. Update `autopilot.json`: status "completed", stoppingReason, completedAt.
-6. Update `autopilot-state.json`: command "completed".
-7. Report to user: path to report, total nodes, total findings, stopping reason.
 
 ## Teams API Lifecycle (Per Node)
 
@@ -150,6 +146,17 @@ Multi-parent nodes combine insights from different branches. Look for:
 
 Multi-parent frontmatter: `parentIds: ["id-1", "id-2"]`. The researcher prompt must include findings from all parents and frame the specific hypothesis.
 
+## Generating Candidates When the Graph Seems Exhausted
+
+The research never hits a dead end. When standard candidates (follow-ups, open questions) run dry:
+
+1. **Cross-pollinate**: Pick the two most distant branches in the DAG and hypothesize a connection.
+2. **Invert assumptions**: Take a high-confidence finding and design a node that tries to disprove it.
+3. **Zoom out**: Step back from details and ask what macro-level patterns the dataset might reveal.
+4. **Zoom in**: Pick an overlooked column or subpopulation and profile it deeply.
+5. **Method shift**: If prior nodes used correlations, try clustering. If they used statistics, try visualization-oriented analysis.
+6. **Temporal/segment splits**: Partition the data differently (time windows, percentiles, categories) and re-analyze.
+
 ## State Management
 
 ### Files
@@ -157,11 +164,10 @@ Multi-parent frontmatter: `parentIds: ["id-1", "id-2"]`. The researcher prompt m
 | File | Purpose |
 |------|---------|
 | `config.json` | Dataset path, goals (immutable after INIT) |
-| `autopilot.json` | maxNodes, status, nodes[] (append-only) |
-| `autopilot-state.json` | User control: "running" / "abort" / "completed" |
+| `autopilot.json` | Status, nodes[] (append-only) |
+| `autopilot-state.json` | User control: "running" / "abort" |
 | `nodes/{id}/report.md` | DAG node with YAML frontmatter |
 | `nodes/{id}/researcher-{K}/summary.md` | Individual researcher output |
-| `autopilot-report.md` | Final synthesis report |
 
 ### Report Frontmatter (DAG Source of Truth)
 
@@ -184,7 +190,6 @@ The DAG is reconstructed entirely from these frontmatter blocks each iteration.
 
 ```json
 {
-  "maxNodes": 15,
   "status": "running",
   "nodes": [
     {
@@ -198,6 +203,16 @@ The DAG is reconstructed entirely from these frontmatter blocks each iteration.
 }
 ```
 
+Status is `"running"` or `"aborted"`. No other values.
+
+### autopilot-state.json Schema
+
+```json
+{ "command": "running" }
+```
+
+Only two valid commands: `"running"` and `"abort"`.
+
 ### Directory Structure
 
 ```
@@ -209,26 +224,15 @@ The DAG is reconstructed entirely from these frontmatter blocks each iteration.
     {node-id}/
       report.md
       researcher-{K}/summary.md
-  autopilot-report.md
 ```
 
-## Stopping & Error Handling
-
-**4 stopping conditions** (checked at start of each EVALUATE):
-1. Max nodes reached (`nodes.length >= maxNodes`, default 15)
-2. No viable expansion candidates (graph naturally exhausted)
-3. Convergence (last 2+ nodes each produced fewer than 2 new findings)
-4. User abort (`autopilot-state.json` command is "abort")
-
-**Abort**: `/autopilot-abort` writes `command: "abort"` to `autopilot-state.json`. Next EVALUATE jumps to FINALIZE. To resume: re-run `/autopilot` (recovers from last complete node).
-
-**Recovery**: Glob `nodes/*/report.md`, rebuild DAG. Delete incomplete node folders (no report.md). Resume from EVALUATE.
+## Error Handling
 
 | Error | Action |
 |-------|--------|
-| TeamCreate fails | Retry once. If still fails, FINALIZE with reason "error". |
+| TeamCreate fails | Retry once. If still fails, log error, skip this node, return to EVALUATE. |
 | >50% researchers fail | Continue with available results. Log warning. |
-| Dataset unavailable | FINALIZE immediately with reason "error". |
+| Dataset unavailable | Set status to "aborted" in autopilot.json and stop. |
 
 ## Important Rules
 
@@ -238,3 +242,5 @@ The DAG is reconstructed entirely from these frontmatter blocks each iteration.
 - No implicit state sharing between nodes -- serialize outputs to disk.
 - The DAG is the source of truth. Rebuild it from report frontmatter each iteration.
 - Node IDs use timestamps for natural ordering: `YYYYMMDD_HHMMSS_XXXX`.
+- The loop never self-terminates. Only user abort stops it.
+- Re-running `/autopilot` on an existing `.otterwise/` directory is the resume mechanism.

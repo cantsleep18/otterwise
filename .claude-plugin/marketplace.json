@@ -11,7 +11,7 @@
     {
       "name": "otterwise",
       "source": "./",
-      "description": "Autonomous compound research platform with auto-update — spawns agent teams to analyze datasets with a graph of discoveries. Includes setup diagnostics and seamless self-updating.",
+      "description": "Autonomous compound research platform with auto-update — spawns agent teams to analyze datasets with a graph of discoveries. Includes real-time graph visualization dashboard, setup diagnostics, and seamless self-updating.",
       "version": "1.2.0",
       "category": "productivity",
       "tags": [
@@ -22,7 +22,9 @@
         "autopilot",
         "auto-update",
         "setup",
-        "diagnostics"
+        "diagnostics",
+        "visualization",
+        "dashboard"
       ]
     }
   ]

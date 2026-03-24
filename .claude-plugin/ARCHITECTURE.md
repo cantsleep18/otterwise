@@ -1,6 +1,6 @@
-# Otterwise Auto-Update & ow-setup Architecture
+# Otterwise Architecture
 
-Version: 1.1.0 | Date: 2026-03-23
+Version: 1.2.0 | Date: 2026-03-24
 
 ---
 
@@ -377,10 +377,34 @@ All skills in `skills/` must be registered in `plugin.json`. ow-setup validates:
 | Terminal UI format | `skills/ow-setup/SKILL.md` Output Format | ow-setup skill |
 | Plugin manifest | `.claude-plugin/plugin.json` | Plugin registry |
 | Marketplace config | `.claude-plugin/marketplace.json` | Marketplace listing |
+| Dashboard UI | `dashboard/` | Dashboard (Vite + React) |
+| Dashboard skill | `skills/dashboard/SKILL.md` | dashboard skill |
+| Dashboard API | `dashboard/src/api/` | Dashboard data layer |
 
 ---
 
-## 9. Implementation Plan
+## 9. Dashboard
+
+### 9.1 Overview
+
+The research dashboard is a Vite-based React application that provides real-time graph visualization of the autopilot's discovery DAG. It is launched via the `/otterwise:dashboard` skill.
+
+### 9.2 Technology Stack
+
+- **Build**: Vite (dev server with HMR)
+- **UI**: React with react-force-graph-2d for force-directed graph rendering
+- **Data source**: Reads node/edge data from `.otterwise/` research state files
+- **Launch**: The `/otterwise:dashboard` skill starts the Vite dev server and opens the browser
+
+### 9.3 Autopilot Model
+
+The autopilot runs as an infinite expansion loop — there is no fixed node limit, no finalization step, and no terminal "completed" state. The graph grows continuously as the autopilot discovers new research directions. Users control the session via `/otterwise:autopilot-pause` and `/otterwise:autopilot-abort`.
+
+The dashboard visualizes this live, streaming graph as it expands.
+
+---
+
+## 10. Implementation Plan
 
 ### Phase 1: Update ow-setup SKILL.md
 1. Replace the Output Format section with the new terminal UI design (§4)
@@ -402,7 +426,7 @@ All changes go into `skills/ow-setup/SKILL.md` — the skill is the implementati
 
 ---
 
-## 10. File Change Summary
+## 11. File Change Summary
 
 | File | Change Type | Description |
 |------|-------------|-------------|

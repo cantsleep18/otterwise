@@ -5,7 +5,7 @@ description: Abort a running autopilot session
 
 # /otterwise:autopilot-abort
 
-Abort a running autopilot session. Signals the orchestrator to stop after the current round completes.
+Abort a running autopilot session. Writes an abort command to the state file so the orchestrator stops the loop.
 
 ## Usage
 
@@ -22,7 +22,6 @@ No arguments needed. This skill runs in a **separate Claude session** from the a
 
 1. Read and parse `.otterwise/autopilot-state.json`
 2. If `command === "abort"`: display "Abort already requested." and stop
-3. If `command === "completed"`: display "Autopilot session has already completed. Nothing to abort." and stop
 
 ### 3. Write Abort Signal
 
@@ -36,19 +35,20 @@ Update `.otterwise/autopilot-state.json`:
 }
 ```
 
+The autopilot orchestrator will set `status: "aborted"` in `autopilot.json` when it reads this signal.
+
 ### 4. Confirm to User
 
 Display:
 ```
-Abort requested. The autopilot session will stop after the current round completes
-and generate a final report with results so far.
+Abort requested. The autopilot session will stop after the current round completes.
 
-Use /otterwise:status to see results once the session finishes.
+Use /otterwise:status to check session state.
 ```
 
 ## Important Rules
 
 - This skill runs in a **separate Claude session** from the autopilot — it only writes a file; the autopilot loop reads it
-- Abort is not instant — the current round finishes, then the autopilot runs its Final Synthesis phase with `stoppingReason: "user-abort"`
+- Abort is not instant — the current round finishes, then the loop stops. No synthesis or report is generated.
 - If no `autopilot-state.json` exists, there is no active autopilot session to abort
 - Never modify `.otterwise/autopilot.json` directly — that file is owned by the autopilot orchestrator

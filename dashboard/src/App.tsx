@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { fetchReports } from '@/lib/parse-reports';
-import type { GraphData, ResearchNode } from './types';
+import type { GraphData, ResearchNode, AutopilotStatus } from './types';
 import Sidebar from './components/Sidebar';
 import ResearchGraph from './components/ResearchGraph';
 import { ReportPanel } from './components/ReportPanel';
@@ -8,9 +8,16 @@ import { ReportPanel } from './components/ReportPanel';
 
 const POLL_INTERVAL = 5000;
 
+const STATUS_DISPLAY: Record<AutopilotStatus['status'], { label: string; color: string }> = {
+  running: { label: 'Running', color: 'bg-green-500' },
+  paused: { label: 'Paused', color: 'bg-yellow-500' },
+  aborted: { label: 'Aborted', color: 'bg-red-500' },
+};
+
 export default function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [selectedNode, setSelectedNode] = useState<ResearchNode | null>(null);
+  const [autopilotStatus, setAutopilotStatus] = useState<AutopilotStatus | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -18,6 +25,16 @@ export default function App() {
       setGraphData(data);
     } catch {
       // API not available yet, keep current data
+    }
+
+    try {
+      const res = await fetch('/api/status');
+      if (res.ok) {
+        const status: AutopilotStatus = await res.json();
+        setAutopilotStatus(status);
+      }
+    } catch {
+      // Status endpoint not available yet
     }
   }, []);
 
@@ -27,12 +44,27 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  const statusInfo = autopilotStatus ? STATUS_DISPLAY[autopilotStatus.status] : null;
+
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-100">
       {/* Sidebar */}
       <aside className="w-[250px] flex-shrink-0 border-r border-zinc-800 bg-zinc-900">
         <div className="p-4 border-b border-zinc-800">
-          <h1 className="text-base font-bold tracking-tight">Otterwise 🦦</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-base font-bold tracking-tight">Otterwise</h1>
+            {statusInfo && (
+              <span className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <span className={`inline-block w-2 h-2 rounded-full ${statusInfo.color}`} />
+                {statusInfo.label}
+              </span>
+            )}
+          </div>
+          {autopilotStatus && (
+            <p className="text-xs text-zinc-500 mt-1">
+              {autopilotStatus.nodeCount} {autopilotStatus.nodeCount === 1 ? 'node' : 'nodes'}
+            </p>
+          )}
         </div>
         <Sidebar
           nodes={graphData.nodes}

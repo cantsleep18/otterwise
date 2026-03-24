@@ -26,7 +26,6 @@ export type {
   AutopilotNode,
   AutopilotState,
   AutopilotScenario,
-  StoppingReason,
 } from "./autopilot-scenarios.js";
 
 // ── File paths for static fixtures ──────────────────────────────
@@ -43,7 +42,5 @@ export const fixturePaths = {
   sampleReport: join(__dirname, "report.md"),
   autopilotConfig: join(__dirname, "autopilot-config.json"),
   autopilotStateRunning: join(__dirname, "autopilot-state-running.json"),
-  autopilotStateCompleted: join(__dirname, "autopilot-state-completed.json"),
   autopilotStatePaused: join(__dirname, "autopilot-state-paused.json"),
-  autopilotReport: join(__dirname, "autopilot-report.md"),
 };

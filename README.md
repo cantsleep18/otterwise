@@ -20,7 +20,8 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 | **Autonomous Research** | Give it a dataset and goals; it designs and executes multi-agent analysis |
 | **Graph-Based Expansion** | Research grows as a DAG, not linearly -- each node branches into new directions |
 | **Agent Teams** | Parallel analysis by dynamically created teammate agents |
-| **Auto Pilot** | Autonomous graph expansion with intelligent direction selection |
+| **Auto Pilot** | Infinite autonomous graph expansion -- runs until you abort |
+| **Dashboard** | Real-time force-graph visualization of the research DAG |
 | **Auto-Update** | Seamless self-updating with cache migration and version checking via `ow-setup` |
 
 ---
@@ -70,7 +71,7 @@ Otterwise creates a `.otterwise/` directory, spawns a research lead agent, and k
         summary.md
 ```
 
-Each `report.md` has YAML frontmatter (`id`, `parent`, `related`, `status`) defining the research DAG. `/otterwise:continue` reads all reports and expands the graph.
+Each `report.md` has YAML frontmatter (`id`, `parentIds`, `status`, `findingsCount`) defining the research DAG. `/otterwise:continue` reads all reports and expands the graph.
 
 ---
 
@@ -81,9 +82,10 @@ Each `report.md` has YAML frontmatter (`id`, `parent`, `related`, `status`) defi
 | `/otterwise:research` | Start a new research session on a dataset |
 | `/otterwise:continue` | Expand the research graph into new directions |
 | `/otterwise:status` | Display the research graph as a tree |
-| `/otterwise:autopilot` | Run autonomous graph-based research on a dataset |
+| `/otterwise:autopilot` | Run infinite autonomous research on a dataset |
 | `/otterwise:autopilot-pause` | Pause or resume a running autopilot session (toggles) |
-| `/otterwise:autopilot-abort` | Abort autopilot and generate partial results |
+| `/otterwise:autopilot-abort` | Abort the autopilot loop |
+| `/otterwise:dashboard` | Launch or stop the research graph visualization |
 | `/otterwise:ow-setup` | Setup, diagnose, and update Otterwise |
 
 ```
@@ -100,42 +102,35 @@ Research Graph:
 
 ## Auto Pilot
 
-Autopilot automates the research graph expansion cycle, expanding nodes autonomously without manual intervention.
+Autopilot runs an infinite research expansion loop. It continuously adds nodes to the research DAG -- exploring new directions, deepening findings, and combining insights across branches. The loop never self-terminates; only user abort stops it.
+
+Re-running `/otterwise:autopilot` on an existing `.otterwise/` directory resumes from the current state.
 
 ### Quick Start
 ```bash
-/otterwise:autopilot
-```
-
-You'll be prompted for:
-- **Dataset** -- path to your data file
-- **Goals** -- research questions (optional)
-
-Autopilot creates an `.otterwise/autopilot.json` config and runs autonomous graph expansion.
-
-### Configuration
-
-Create `.otterwise/autopilot.json` to customize behavior:
-
-```json
-{
-  "maxIterations": 5,
-  "maxConcurrentTeammates": 3,
-  "explorationStrategy": "balanced",
-  "stopping": {
-    "minFindingsPerNode": 2,
-    "maxDeadEndRatio": 0.6
-  },
-  "scope": {
-    "depthLimit": 4
-  }
-}
+/otterwise:autopilot /path/to/data.csv "Optional research goals"
 ```
 
 ### Controls
-- **Pause/Resume**: `/otterwise:autopilot-pause` -- toggles pause state; completes current node before pausing
-- **Abort**: `/otterwise:autopilot-abort` -- stops immediately, generates partial report
-- **Status**: `/otterwise:status` -- shows autopilot progress and research graph
+- **Pause/Resume**: `/otterwise:autopilot-pause` -- toggles pause state
+- **Abort**: `/otterwise:autopilot-abort` -- stops the loop
+- **Status**: `/otterwise:status` -- shows node count, DAG depth, and expansion direction
+- **Dashboard**: `/otterwise:dashboard` -- launch the graph visualization
+
+---
+
+## Dashboard
+
+Visualize the research DAG as an interactive force-directed graph.
+
+### Quick Start
+```bash
+/otterwise:dashboard
+```
+
+Launches a Vite dev server at `http://localhost:5173` with a React app that renders your research graph using `react-force-graph-2d`. Nodes are color-coded by status and edges represent parent-child relationships (including multi-parent cross-branch nodes).
+
+Running the command again stops the dashboard. You can also use `/otterwise:dashboard start` or `/otterwise:dashboard stop` explicitly.
 
 ---
 
@@ -185,8 +180,9 @@ otterwise/
     ow-setup/              /otterwise:ow-setup
     autopilot-pause/       /otterwise:autopilot-pause (toggles pause/resume)
     autopilot-abort/       /otterwise:autopilot-abort
+    dashboard/             /otterwise:dashboard
   scripts/                 Validation and publishing scripts
-  dashboard/               Research dashboard UI
+  dashboard/               Research dashboard UI (Vite + React + react-force-graph-2d)
   tests/                   Integration and fixture tests
   settings.json            Claude Code permissions
 ```

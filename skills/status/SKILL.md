@@ -31,14 +31,14 @@ Research Graph:
 │       └── ◌ segmentation
 ├── ✗ outlier-scan (dead-end)
 └── ● quality-audit (2 findings)
-    └── ● missing-data + correlation-deep-dive (3 findings)  ← cross-branch
+    └── ● missing-data + correlation-deep-dive (3 findings)  <- cross-branch
 ```
 
-Legend: `● completed` `○ in-progress` `◌ pending` `✗ dead-end`
+Legend: `●` completed `○` in-progress `◌` pending `✗` dead-end
 
 ### Cross-branch nodes
 
-Nodes with multiple parents represent cross-branch combinations. Show them under their first parent with a `← cross-branch` annotation and list all parent names joined with ` + `.
+Nodes with multiple parents represent cross-branch combinations. Show them under their first parent with a `<- cross-branch` annotation and list all parent names joined with ` + `.
 
 ### Node label format
 
@@ -81,9 +81,11 @@ Read `.otterwise/autopilot.json` for session data (nodes, status, config). Read 
 ```
 Autopilot:
   Status:     RUNNING
-  Nodes:      {nodes.length} / {maxNodes} max
+  Nodes:      {totalNodes}
   Findings:   {totalFindings} total
   Expanding:  {last in-progress node name}
+  Direction:  {current expansion direction from latest node's goals}
+  DAG depth:  {current DAG depth}
   Elapsed:    {elapsed since createdAt}
 
   Expansion History:
@@ -95,13 +97,32 @@ Autopilot:
 - List nodes in creation order.
 - For completed nodes: show `●` with findings count.
 - For the current in-progress node: show `○` with `(expanding...)`.
+- **Direction**: read from the latest node's frontmatter `goals` field; shows what the autopilot is currently investigating.
+
+### Paused (`autopilot-state.json` command is `"pause"`)
+
+```
+Autopilot:
+  Status:     PAUSED
+  Nodes:      {totalNodes}
+  Findings:   {totalFindings} total
+  Paused at:  {updatedAt from autopilot-state.json}
+  Elapsed:    {elapsed since createdAt}
+
+  Expansion History:
+    1. ● basic-profiling (5 findings)
+    2. ● correlation-deep-dive (4 findings)
+    ...
+```
+
+- Autopilot will resume from where it left off when unpaused.
 
 ### Aborting (`autopilot-state.json` command is `"abort"`)
 
 ```
 Autopilot:
   Status:     ABORTING (will stop after current node)
-  Nodes:      {nodes.length} / {maxNodes} max
+  Nodes:      {totalNodes}
   Findings:   {totalFindings} total (partial)
 
   Expansion History:
@@ -109,52 +130,34 @@ Autopilot:
     ...
 ```
 
-### Completed (`status` is `"completed"`, `completedAt` is set)
-
-```
-Autopilot:
-  Status:     COMPLETED
-  Reason:     {stoppingReason}
-  Nodes:      {totalNodes}
-  Findings:   {totalFindings} total
-  Report:     .otterwise/autopilot-report.md
-
-  Expansion History:
-    1. ● basic-profiling (5 findings)
-    2. ● correlation-deep-dive (4 findings)
-    3. ● time-series-analysis (3 findings)
-    ...
-```
-
-Stopping reasons: `"max-nodes"`, `"exhausted"`, `"user-abort"`
-
-### Aborted (`stoppingReason` is `"user-abort"`)
+### Aborted (`status` is `"aborted"`)
 
 ```
 Autopilot:
   Status:     ABORTED
-  Nodes:      {totalNodes} (partial)
+  Nodes:      {totalNodes}
   Findings:   {totalFindings} total
-  Report:     .otterwise/autopilot-report.md
 
   Expansion History:
     1. ● basic-profiling (5 findings)
     ...
 ```
+
+- Research data remains in `.otterwise/` and can be continued by running `/otterwise:autopilot` again.
 
 ---
 
 ## Data Sources
 
 **`.otterwise/nodes/{node-id}/report.md`** -- DAG source of truth via YAML frontmatter:
-- `id`, `name`, `parents` (array of parent IDs), `status`, `findingsCount`, `dataset`
+- `id`, `name`, `parents` (array of parent IDs), `status`, `findingsCount`, `goals`, `dataset`
 
 **`.otterwise/config.json`** -- dataset path, goals (immutable after init)
 
 **`.otterwise/autopilot.json`** -- autopilot session state:
-- `maxNodes`, `status`, `totalFindings`, `stoppingReason`, `createdAt`, `completedAt`
+- `status` (`"running"` | `"aborted"`), `totalFindings`, `createdAt`
 - `nodes[]`: each with `id`, `parentIds`, `status`, `findingsCount`, `startedAt`, `completedAt`
 
 **`.otterwise/autopilot-state.json`** -- live control signal (may not exist):
-- `command`: `"running"` | `"abort"` | `"completed"`
+- `command`: `"running"` | `"pause"` | `"abort"`
 - `updatedAt`, `reason`

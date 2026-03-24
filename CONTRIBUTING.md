@@ -26,7 +26,7 @@ cd dashboard
 npm run dev
 ```
 
-Opens on http://localhost:5173. The Vite dev server includes a plugin that serves `/api/reports`, `/api/files/`, and `/api/notebooks` endpoints by scanning the `.otterwise/` directory.
+Opens on http://localhost:5173. The Vite dev server includes a plugin that serves `/api/reports`, `/api/files/`, and `/api/status` endpoints by scanning the `.otterwise/` directory. You can also launch the dashboard via `/otterwise:dashboard` when using Otterwise as a Claude Code extension.
 
 To build for production:
 

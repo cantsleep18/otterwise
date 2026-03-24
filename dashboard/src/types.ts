@@ -1,8 +1,7 @@
 export interface ResearchNode {
   id: string;
   name: string;
-  parent: string | null;
-  related: string[];
+  parentIds: string[];
   dataset: string;
   status: 'completed' | 'in-progress' | 'dead-end' | 'pending';
   findings_count: number;
@@ -18,31 +17,15 @@ export interface GraphData {
 export interface ReportFrontmatter {
   id: string;
   name: string;
-  parent: string | null;
-  related?: string[];
+  parentIds: string[];
   dataset: string;
   status: string;
   findings_count: number;
 }
 
-export interface NotebookCell {
-  cell_type: 'code' | 'markdown' | 'raw';
-  source: string;
-  outputs: NotebookOutput[];
-}
-
-export interface NotebookOutput {
-  output_type: 'stream' | 'execute_result' | 'display_data' | 'error';
-  text?: string;
-  data?: Record<string, string>;
-  ename?: string;
-  evalue?: string;
-  traceback?: string[];
-}
-
-export interface ParsedNotebook {
-  cells: NotebookCell[];
-  metadata: Record<string, unknown>;
+export interface AutopilotStatus {
+  status: 'running' | 'paused' | 'aborted';
+  nodeCount: number;
 }
 
 export interface TeammateSummary {

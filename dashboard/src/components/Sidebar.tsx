@@ -14,36 +14,19 @@ const STATUS_COLORS: Record<ResearchNode['status'], string> = {
   pending: 'bg-zinc-500',
 };
 
-/** Count how many parents a node has to determine indent depth. */
-function getDepth(node: ResearchNode, nodeMap: Map<string, ResearchNode>): number {
-  let depth = 0;
-  let current = node;
-  while (current.parent) {
-    depth++;
-    const parent = nodeMap.get(current.parent);
-    if (!parent) break;
-    current = parent;
-  }
-  return depth;
-}
+const STATUS_LABELS: Record<ResearchNode['status'], string> = {
+  completed: 'Done',
+  'in-progress': 'Running',
+  'dead-end': 'Dead end',
+  pending: 'Pending',
+};
 
 export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
   const [search, setSearch] = useState('');
 
-  const nodeMap = useMemo(
-    () => new Map(nodes.map((n) => [n.id, n])),
-    [nodes],
-  );
-
+  // Sort by creation time (ID is timestamp-based, so lexicographic = chronological)
   const sortedNodes = useMemo(() => {
-    return [...nodes].sort((a, b) => {
-      // Root nodes first
-      const aRoot = a.parent === null ? 0 : 1;
-      const bRoot = b.parent === null ? 0 : 1;
-      if (aRoot !== bRoot) return aRoot - bRoot;
-      // Then by ID (timestamp-based, so chronological)
-      return a.id.localeCompare(b.id);
-    });
+    return [...nodes].sort((a, b) => a.id.localeCompare(b.id));
   }, [nodes]);
 
   const filtered = useMemo(() => {
@@ -68,7 +51,6 @@ export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
       {/* Node list */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {filtered.map((node) => {
-          const depth = getDepth(node, nodeMap);
           const isSelected = selectedNode?.id === node.id;
 
           return (
@@ -80,15 +62,20 @@ export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
                   ? 'bg-zinc-700 text-zinc-100'
                   : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
               }`}
-              style={{ paddingLeft: `${12 + depth * 12}px` }}
             >
               {/* Status dot */}
               <span
                 className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[node.status]}`}
+                title={STATUS_LABELS[node.status]}
               />
 
               {/* Name */}
               <span className="truncate flex-1 font-medium">{node.name}</span>
+
+              {/* Status badge */}
+              <span className="text-xs text-zinc-500 flex-shrink-0">
+                {STATUS_LABELS[node.status]}
+              </span>
 
               {/* Findings count badge */}
               {node.findings_count > 0 && (

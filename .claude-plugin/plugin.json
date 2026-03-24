@@ -8,6 +8,6 @@
   "repository": "https://github.com/cantsleep18/otterwise",
   "homepage": "https://github.com/cantsleep18/otterwise",
   "license": "MIT",
-  "keywords": ["research", "data-science", "multi-agent", "analysis"],
+  "keywords": ["research", "data-science", "multi-agent", "analysis", "visualization"],
   "skills": "./skills/"
 }

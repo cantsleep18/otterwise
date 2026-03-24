@@ -23,13 +23,18 @@ export function parseReportContent(content: string): {
 } {
   const { data, content: body } = matter(content);
 
+  // Support both parentIds (new) and parent (legacy) frontmatter
+  let parentIds: string[] = [];
+  if (Array.isArray(data.parentIds)) {
+    parentIds = data.parentIds.map(String);
+  } else if (data.parent != null) {
+    parentIds = [String(data.parent)];
+  }
+
   const frontmatter: ReportFrontmatter = {
     id: String(data.id ?? ''),
     name: String(data.name ?? ''),
-    parent: data.parent != null ? String(data.parent) : null,
-    related: Array.isArray(data.related)
-      ? data.related.map(String)
-      : undefined,
+    parentIds,
     dataset: String(data.dataset ?? ''),
     status: String(data.status ?? 'pending'),
     findings_count: Number(data.findings_count) || 0,
@@ -76,8 +81,7 @@ export function buildGraphData(
       const node: ResearchNode = {
         id: frontmatter.id,
         name: frontmatter.name,
-        parent: frontmatter.parent,
-        related: frontmatter.related ?? [],
+        parentIds: frontmatter.parentIds,
         dataset: frontmatter.dataset,
         status: frontmatter.status as ResearchNode['status'],
         findings_count: frontmatter.findings_count,
@@ -87,16 +91,9 @@ export function buildGraphData(
 
       nodes.push(node);
 
-      // Edge from parent -> this node
-      if (frontmatter.parent) {
-        edges.push({ source: frontmatter.parent, target: frontmatter.id });
-      }
-
-      // Edges from related nodes
-      if (frontmatter.related) {
-        for (const relatedId of frontmatter.related) {
-          edges.push({ source: frontmatter.id, target: relatedId });
-        }
+      // Edges from each parent -> this node
+      for (const parentId of frontmatter.parentIds) {
+        edges.push({ source: parentId, target: frontmatter.id });
       }
     } catch {
       // Skip malformed reports
