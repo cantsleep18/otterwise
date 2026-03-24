@@ -9,41 +9,5 @@
   "homepage": "https://github.com/cantsleep18/otterwise",
   "license": "MIT",
   "keywords": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis"],
-  "skills": [
-    {
-      "name": "research",
-      "description": "Start a new Otterwise research session on a dataset",
-      "path": "skills/research"
-    },
-    {
-      "name": "continue",
-      "description": "Continue and expand an existing Otterwise research session",
-      "path": "skills/continue"
-    },
-    {
-      "name": "status",
-      "description": "Show the current state of Otterwise research",
-      "path": "skills/status"
-    },
-    {
-      "name": "ow-setup",
-      "description": "Setup, diagnose, and update Otterwise",
-      "path": "skills/ow-setup"
-    },
-    {
-      "name": "autopilot",
-      "description": "Run autonomous research rounds with automated loop control and decision engine",
-      "path": "skills/autopilot"
-    },
-    {
-      "name": "autopilot-pause",
-      "description": "Pause a running auto pilot research session",
-      "path": "skills/autopilot-pause"
-    },
-    {
-      "name": "autopilot-abort",
-      "description": "Abort a running auto pilot research session",
-      "path": "skills/autopilot-abort"
-    }
-  ]
+  "skills": "./skills/"
 }
