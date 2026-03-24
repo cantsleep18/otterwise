@@ -19,23 +19,28 @@ Run through these checks in order. Report each as PASS / FAIL / WARN with a one-
 [ ] npx available       → run: which npx
 ```
 
-### 2. npm Dependencies
+### 2. MCP Server Artifact
 
 ```
-[ ] node_modules exists → check: servers/python-repl/node_modules/
-[ ] packages up to date → run: cd servers/python-repl && npm ls --depth=0
+[ ] Bundled server exists    → check: servers/python-repl/dist/mcp-server.cjs
+[ ] Server starts            → run: timeout 5 node servers/python-repl/dist/mcp-server.cjs (expect stdio MCP handshake)
 ```
 
-If node_modules is missing or outdated:
-→ Auto-fix: `cd servers/python-repl && npm install`
+If `dist/mcp-server.cjs` is missing:
+→ Auto-fix: `cd servers/python-repl && npm install && node scripts/build.mjs`
 
-### 3. MCP Server Health
+### 3. Dev Environment (skip if `.git` does not exist)
+
+Only check these in development (git repo present). Plugin marketplace users have the bundled artifact and don't need source dependencies.
 
 ```
-[ ] index.ts exists          → check: servers/python-repl/src/index.ts
+[ ] node_modules exists      → check: servers/python-repl/node_modules/
 [ ] TypeScript compiles      → run: cd servers/python-repl && npx tsc --noEmit
-[ ] Server starts            → run: timeout 5 npx tsx servers/python-repl/src/index.ts (expect stdio MCP handshake)
+[ ] Source entry exists      → check: servers/python-repl/src/index.ts
 ```
+
+If node_modules is missing:
+→ Auto-fix: `cd servers/python-repl && npm install`
 
 ### 4. Python Worker Health
 
@@ -81,22 +86,22 @@ If versions are in sync:
 
 #### Skills Registration Check
 
-Validate that skills on disk match what's registered in plugin.json:
+Validate that skills exist on disk:
 
 ```
-1. Read .claude-plugin/plugin.json → .skills[] array (each has .name and .path)
+1. Read .claude-plugin/plugin.json → .skills field
+   - If string (directory path like "./skills/"): list all subdirectories containing SKILL.md
+   - If array: read each entry's .name and .path
 2. List directories in skills/ that contain a SKILL.md
-3. Compare:
-   - Every plugin.json skill entry must have a matching skills/{name}/SKILL.md on disk
-   - Every skills/*/SKILL.md on disk must have a matching entry in plugin.json
+3. Verify each skill directory has a valid SKILL.md with YAML frontmatter (name, description)
 ```
 
-If all match:
-→ PASS: "All skills registered (N skills)"
+If all valid:
+→ PASS: "All skills valid (N skills found)"
 
-If mismatch:
-→ FAIL: "Unregistered skill: skills/{name}/SKILL.md not in plugin.json"
-→ FAIL: "Missing skill: plugin.json references {name} but skills/{name}/SKILL.md not found"
+If issue:
+→ WARN: "Skill skills/{name}/SKILL.md missing frontmatter"
+→ FAIL: "No skills found in skills/ directory"
 
 ### 6. Auto-Update
 
@@ -450,14 +455,12 @@ Environment
   PASS  Python 3.12.3
   PASS  npx available
 
-Dependencies
-  PASS  node_modules installed
-  PASS  packages up to date
-
 MCP Server
-  PASS  index.ts exists
-  PASS  TypeScript compiles
+  PASS  dist/mcp-server.cjs exists
   PASS  Server process starts
+
+Dev Environment
+  SKIP  Not a dev environment (no .git)
 
 Python Worker
   PASS  worker.py exists
@@ -569,17 +572,17 @@ Tests
 When a FAIL is detected and an auto-fix is available, run the fix immediately and show both the FAIL and result on consecutive lines within the same section:
 
 ```
-Dependencies
-  FAIL  node_modules missing
-  DONE  Installed (npm install completed)
+MCP Server
+  FAIL  dist/mcp-server.cjs missing
+  DONE  Built (npm install && build completed)
 ```
 
 If the fix itself fails:
 
 ```
-Dependencies
-  FAIL  node_modules missing
-  FAIL  npm install failed (see error above)
+MCP Server
+  FAIL  dist/mcp-server.cjs missing
+  FAIL  Build failed (see error above)
 ```
 
 ### Summary Line
