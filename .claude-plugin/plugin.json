@@ -1,7 +1,7 @@
 {
   "name": "otterwise",
   "description": "Autonomous compound research platform — spawns agent teams to analyze datasets with Python notebooks and a graph of discoveries",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": {
     "name": "cantsleep18"
   },
@@ -39,11 +39,6 @@
       "name": "autopilot-pause",
       "description": "Pause a running auto pilot research session",
       "path": "skills/autopilot-pause"
-    },
-    {
-      "name": "autopilot-resume",
-      "description": "Resume a paused auto pilot research session",
-      "path": "skills/autopilot-resume"
     },
     {
       "name": "autopilot-abort",

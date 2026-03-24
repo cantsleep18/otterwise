@@ -5,16 +5,27 @@
   },
   "metadata": {
     "description": "Autonomous compound research platform for Claude Code",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "plugins": [
     {
       "name": "otterwise",
       "source": "./",
-      "description": "Autonomous compound research platform — spawns agent teams to analyze datasets with Python notebooks and a graph of discoveries",
-      "version": "1.1.0",
+      "description": "Autonomous compound research platform with auto-update — spawns agent teams to analyze datasets with Python notebooks and a graph of discoveries. Includes setup diagnostics and seamless self-updating.",
+      "version": "1.2.0",
       "category": "productivity",
-      "tags": ["research", "data-science", "jupyter", "multi-agent", "python-repl", "analysis", "autopilot"]
+      "tags": [
+        "research",
+        "data-science",
+        "jupyter",
+        "multi-agent",
+        "python-repl",
+        "analysis",
+        "autopilot",
+        "auto-update",
+        "setup",
+        "diagnostics"
+      ]
     }
   ]
 }

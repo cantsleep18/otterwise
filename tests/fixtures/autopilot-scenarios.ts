@@ -22,12 +22,25 @@ export interface AutopilotRound {
 
 export interface AutopilotConfig {
   $schema?: string;
-  maxRounds: number;
-  maxTeamSize: number;
+  maxIterations: number;
+  maxConcurrentTeammates: number;
   stoppingThreshold: number;
   researchTimeoutMinutes: number;
+  explorationStrategy: "balanced" | "breadth-first" | "depth-first";
   seedPhrase: string;
   customStoppingCriteria: string[];
+  stopping: {
+    minFindingsPerRound: number;
+    maxDeadEndRatio: number;
+  };
+  scope: {
+    focusAreas: string[] | null;
+    excludeTopics: string[] | null;
+    depthLimit: number;
+  };
+  notifications: {
+    progressUpdates: string;
+  };
   createdAt: string;
   completedAt: string | null;
   stoppingReason: string | null;
@@ -47,12 +60,13 @@ export interface AutopilotState {
 // ── Stopping reason enum (AUTOPILOT_IMPL_SPEC.md Section 4) ──
 
 export type StoppingReason =
-  | "max-rounds"
+  | "max-iterations"
   | "diminishing-returns"
   | "goals-met"
   | "confidence-threshold"
   | "dead-end-saturation"
   | "no-new-questions"
+  | "no-viable-candidates"
   | "time-budget"
   | "custom"
   | "user-abort";
@@ -63,12 +77,25 @@ export const autopilotConfigs = {
   /** Fresh session — balanced defaults, no rounds yet */
   balanced: {
     $schema: "autopilot-config",
-    maxRounds: 5,
-    maxTeamSize: 5,
+    maxIterations: 5,
+    maxConcurrentTeammates: 3,
     stoppingThreshold: 0.85,
     researchTimeoutMinutes: 30,
+    explorationStrategy: "balanced",
     seedPhrase: "autopilot-20260323-143015",
     customStoppingCriteria: [],
+    stopping: {
+      minFindingsPerRound: 2,
+      maxDeadEndRatio: 0.6,
+    },
+    scope: {
+      focusAreas: null,
+      excludeTopics: null,
+      depthLimit: 4,
+    },
+    notifications: {
+      progressUpdates: "per-round",
+    },
     createdAt: "2026-03-23T14:30:15.000Z",
     completedAt: null,
     stoppingReason: null,
@@ -80,12 +107,25 @@ export const autopilotConfigs = {
   /** Quick 2-round scan */
   quickScan: {
     $schema: "autopilot-config",
-    maxRounds: 2,
-    maxTeamSize: 3,
+    maxIterations: 2,
+    maxConcurrentTeammates: 3,
     stoppingThreshold: 0.85,
     researchTimeoutMinutes: 15,
+    explorationStrategy: "balanced",
     seedPhrase: "autopilot-20260323-160000",
     customStoppingCriteria: [],
+    stopping: {
+      minFindingsPerRound: 2,
+      maxDeadEndRatio: 0.6,
+    },
+    scope: {
+      focusAreas: null,
+      excludeTopics: null,
+      depthLimit: 4,
+    },
+    notifications: {
+      progressUpdates: "per-round",
+    },
     createdAt: "2026-03-23T16:00:00.000Z",
     completedAt: null,
     stoppingReason: null,
@@ -97,14 +137,27 @@ export const autopilotConfigs = {
   /** Deep 10-round investigation with custom criteria */
   deepAnalysis: {
     $schema: "autopilot-config",
-    maxRounds: 10,
-    maxTeamSize: 5,
+    maxIterations: 10,
+    maxConcurrentTeammates: 5,
     stoppingThreshold: 0.90,
     researchTimeoutMinutes: 60,
+    explorationStrategy: "depth-first",
     seedPhrase: "autopilot-20260323-170000",
     customStoppingCriteria: [
       "Stop if all anomaly types have been categorized",
     ],
+    stopping: {
+      minFindingsPerRound: 2,
+      maxDeadEndRatio: 0.6,
+    },
+    scope: {
+      focusAreas: null,
+      excludeTopics: null,
+      depthLimit: 4,
+    },
+    notifications: {
+      progressUpdates: "per-round",
+    },
     createdAt: "2026-03-23T17:00:00.000Z",
     completedAt: null,
     stoppingReason: null,
@@ -116,12 +169,25 @@ export const autopilotConfigs = {
   /** Single-round config (edge case) */
   singleRound: {
     $schema: "autopilot-config",
-    maxRounds: 1,
-    maxTeamSize: 3,
+    maxIterations: 1,
+    maxConcurrentTeammates: 3,
     stoppingThreshold: 0.85,
     researchTimeoutMinutes: 30,
+    explorationStrategy: "balanced",
     seedPhrase: "autopilot-20260323-180000",
     customStoppingCriteria: [],
+    stopping: {
+      minFindingsPerRound: 2,
+      maxDeadEndRatio: 0.6,
+    },
+    scope: {
+      focusAreas: null,
+      excludeTopics: null,
+      depthLimit: 4,
+    },
+    notifications: {
+      progressUpdates: "per-round",
+    },
     createdAt: "2026-03-23T18:00:00.000Z",
     completedAt: null,
     stoppingReason: null,
@@ -133,15 +199,28 @@ export const autopilotConfigs = {
   /** Completed session — 5 rounds finished */
   completed: {
     $schema: "autopilot-config",
-    maxRounds: 5,
-    maxTeamSize: 5,
+    maxIterations: 5,
+    maxConcurrentTeammates: 3,
     stoppingThreshold: 0.85,
     researchTimeoutMinutes: 30,
+    explorationStrategy: "balanced",
     seedPhrase: "autopilot-20260323-143015",
     customStoppingCriteria: [],
+    stopping: {
+      minFindingsPerRound: 2,
+      maxDeadEndRatio: 0.6,
+    },
+    scope: {
+      focusAreas: null,
+      excludeTopics: null,
+      depthLimit: 4,
+    },
+    notifications: {
+      progressUpdates: "per-round",
+    },
     createdAt: "2026-03-23T14:30:15.000Z",
     completedAt: "2026-03-23T15:05:00.000Z",
-    stoppingReason: "max-rounds",
+    stoppingReason: "max-iterations",
     totalRounds: 5,
     totalFindings: 23,
     rounds: [
@@ -201,7 +280,7 @@ export const autopilotConfigs = {
         teamName: "autopilot-20260323-150030-temporal",
         findingsCount: 3,
         decisionScore: 0.58,
-        stoppingReason: "max-rounds",
+        stoppingReason: "max-iterations",
         startedAt: "2026-03-23T15:00:35.000Z",
         completedAt: "2026-03-23T15:05:00.000Z",
       },
@@ -211,12 +290,25 @@ export const autopilotConfigs = {
   /** In-progress session — 2 rounds done */
   inProgress: {
     $schema: "autopilot-config",
-    maxRounds: 5,
-    maxTeamSize: 5,
+    maxIterations: 5,
+    maxConcurrentTeammates: 3,
     stoppingThreshold: 0.85,
     researchTimeoutMinutes: 30,
+    explorationStrategy: "balanced",
     seedPhrase: "autopilot-20260323-143015",
     customStoppingCriteria: [],
+    stopping: {
+      minFindingsPerRound: 2,
+      maxDeadEndRatio: 0.6,
+    },
+    scope: {
+      focusAreas: null,
+      excludeTopics: null,
+      depthLimit: 4,
+    },
+    notifications: {
+      progressUpdates: "per-round",
+    },
     createdAt: "2026-03-23T14:30:15.000Z",
     completedAt: null,
     stoppingReason: null,
@@ -310,10 +402,10 @@ export const scenarios = {
   /** 5 rounds, normal stop at max iterations */
   normalCompletion: {
     description:
-      "Runs all 5 rounds to completion with steady findings, stops at max-rounds",
+      "Runs all 5 rounds to completion with steady findings, stops at max-iterations",
     config: autopilotConfigs.balanced,
     roundFindings: [5, 4, 6, 5, 3],
-    expectedStopReason: "max-rounds",
+    expectedStopReason: "max-iterations",
     controlSignals: [autopilotStates.running],
     expectedRoundStatuses: {
       "20260323_143015_a1b2": "completed",
@@ -392,13 +484,13 @@ export const scenarios = {
     },
   } satisfies AutopilotScenario,
 
-  /** Stops after round 1 because maxRounds=1 */
+  /** Stops after round 1 because maxIterations=1 */
   singleRound: {
     description:
-      "Single-round config; auto pilot runs one round and stops at max-rounds",
+      "Single-round config; auto pilot runs one round and stops at max-iterations",
     config: autopilotConfigs.singleRound,
     roundFindings: [8],
-    expectedStopReason: "max-rounds",
+    expectedStopReason: "max-iterations",
     controlSignals: [autopilotStates.running],
     expectedRoundStatuses: {
       "20260323_180000_a1b2": "completed",

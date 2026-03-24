@@ -21457,8 +21457,8 @@ function isProcessAlive(pid) {
 }
 function getProcStartTime(pid) {
   try {
-    const stat2 = (0, import_node_fs.readFileSync)(`/proc/${pid}/stat`, "utf-8");
-    const fields = stat2.split(") ")[1]?.split(" ");
+    const stat = (0, import_node_fs.readFileSync)(`/proc/${pid}/stat`, "utf-8");
+    const fields = stat.split(") ")[1]?.split(" ");
     if (fields && fields.length > 19) {
       return parseInt(fields[19], 10);
     }
@@ -21617,7 +21617,7 @@ var BridgeManager = class {
    */
   async verifySocketPath(socketPath) {
     try {
-      const stats = await (0, import_promises3.stat)(socketPath);
+      const stats = await (0, import_promises3.lstat)(socketPath);
       if (!stats.isSocket()) {
         throw new Error(
           `Expected socket at ${socketPath} but found ${stats.isSymbolicLink() ? "symlink" : "regular file"}`
@@ -22043,7 +22043,7 @@ async function handleReset(bridge2) {
 // src/index.ts
 var server = new McpServer({
   name: "otterwise-python-repl",
-  version: "1.0.0"
+  version: "1.2.0"
 });
 var bridge = new BridgeManager();
 server.tool(

@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, lstat } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import {
   connect as socketConnect,
@@ -196,7 +196,7 @@ export class BridgeManager {
   private async verifySocketPath(socketPath: string): Promise<void> {
     try {
       // Use lstat to NOT follow symlinks
-      const stats = await stat(socketPath);
+      const stats = await lstat(socketPath);
       if (!stats.isSocket()) {
         throw new Error(
           `Expected socket at ${socketPath} but found ${stats.isSymbolicLink() ? "symlink" : "regular file"}`,

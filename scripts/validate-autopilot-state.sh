@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # validate-autopilot-state.sh
 # Validates autopilot-state.json integrity after writes.
-# Called as a PostToolUse hook to catch corrupted or invalid state early.
+# Called as a PostToolUse hook on Write to catch corrupted or invalid state early.
 #
-# Resource guard limits (absolute safety ceilings):
+# The state file is a lightweight control signal with three fields:
+#   command   — "running", "pause", "resume", "abort", or "completed"
+#   updatedAt — ISO 8601 timestamp
+#   reason    — optional string (null allowed)
+#
+# Resource guards (safety ceilings) are checked against the separate
+# autopilot.json session config, not the state file itself.
+#
+# Resource guard limits:
 #   - ABSOLUTE_MAX_ROUNDS: 20 — hard cap regardless of config
 #   - MAX_CONCURRENT_TEAMS: 10 — prevents runaway team spawning
-#   - MAX_TOTAL_AGENTS: 50 — cap on total agents across all rounds
-# These are last-resort safeguards. The autopilot config has its own
-# user-facing limits (maxIterations, maxConcurrentTeammates) which should
-# always be lower than these values.
+#   - MAX_TOTAL_AGENTS: 50 — absolute ceiling on total agent count
 
 set -euo pipefail
 
@@ -33,7 +38,7 @@ fi
 
 # --- Required fields ---
 MISSING=()
-for field in status currentRound maxRounds; do
+for field in command updatedAt; do
   val=$(jq -r ".$field // empty" "$STATE_FILE")
   if [ -z "$val" ]; then
     MISSING+=("$field")
@@ -45,37 +50,24 @@ if [ ${#MISSING[@]} -gt 0 ]; then
   exit 1
 fi
 
-# --- Status validation ---
-STATUS=$(jq -r '.status' "$STATE_FILE")
-VALID_STATUSES="running paused pause_requested completed aborted abort_requested"
+# --- Command validation ---
+COMMAND=$(jq -r '.command' "$STATE_FILE")
+VALID_COMMANDS="running pause resume abort completed"
 
-if ! echo "$VALID_STATUSES" | grep -qw "$STATUS"; then
-  echo "ERROR: Invalid status '$STATUS'. Must be one of: $VALID_STATUSES"
+if ! echo "$VALID_COMMANDS" | grep -qw "$COMMAND"; then
+  echo "ERROR: Invalid command '$COMMAND'. Must be one of: $VALID_COMMANDS"
   exit 1
 fi
 
-# --- Round bounds ---
-CURRENT=$(jq -r '.currentRound' "$STATE_FILE")
-MAX=$(jq -r '.maxRounds' "$STATE_FILE")
-
-if [ "$CURRENT" -gt "$MAX" ]; then
-  echo "ERROR: currentRound ($CURRENT) exceeds maxRounds ($MAX)."
+# --- Validate reason field type (string or null) ---
+REASON_TYPE=$(jq -r '.reason | type' "$STATE_FILE" 2>/dev/null)
+if [ "$REASON_TYPE" != "string" ] && [ "$REASON_TYPE" != "null" ]; then
+  echo "ERROR: 'reason' field must be a string or null, got: $REASON_TYPE"
   exit 1
 fi
 
-# --- Absolute safety ceiling on rounds ---
-if [ "$MAX" -gt "$ABSOLUTE_MAX_ROUNDS" ]; then
-  echo "ERROR: maxRounds ($MAX) exceeds absolute safety limit ($ABSOLUTE_MAX_ROUNDS)."
-  exit 1
-fi
-
-if [ "$CURRENT" -gt "$ABSOLUTE_MAX_ROUNDS" ]; then
-  echo "ERROR: currentRound ($CURRENT) exceeds absolute safety limit ($ABSOLUTE_MAX_ROUNDS)."
-  exit 1
-fi
-
-# --- Resource guards (check config if present) ---
-CONFIG_FILE=".otterwise/autopilot-config.json"
+# --- Resource guards (check autopilot.json session config if present) ---
+CONFIG_FILE=".otterwise/autopilot.json"
 if [ -f "$CONFIG_FILE" ] && jq empty "$CONFIG_FILE" 2>/dev/null; then
   # Max concurrent teams guard
   CONCURRENT=$(jq -r '.maxConcurrentTeammates // 0' "$CONFIG_FILE")
@@ -84,19 +76,26 @@ if [ -f "$CONFIG_FILE" ] && jq empty "$CONFIG_FILE" 2>/dev/null; then
     exit 1
   fi
 
-  # Max iterations guard (redundant with round check, but catches config drift)
+  # Max iterations guard
   MAX_ITER=$(jq -r '.maxIterations // 0' "$CONFIG_FILE")
   if [ "$MAX_ITER" -gt "$ABSOLUTE_MAX_ROUNDS" ]; then
     echo "ERROR: maxIterations ($MAX_ITER) in config exceeds absolute safety limit ($ABSOLUTE_MAX_ROUNDS)."
     exit 1
   fi
-fi
 
-# --- Agent count guard (check roundHistory for runaway spawning) ---
-TOTAL_ROUNDS=$(jq '.roundHistory | length // 0' "$STATE_FILE" 2>/dev/null || echo 0)
-if [ "$TOTAL_ROUNDS" -gt "$MAX_TOTAL_AGENTS" ]; then
-  echo "ERROR: roundHistory length ($TOTAL_ROUNDS) exceeds max total agents safety limit ($MAX_TOTAL_AGENTS)."
-  exit 1
+  # Rounds array length guard (append-only, should not exceed max iterations)
+  TOTAL_ROUNDS=$(jq '.rounds | length // 0' "$CONFIG_FILE" 2>/dev/null || echo 0)
+  if [ "$TOTAL_ROUNDS" -gt "$ABSOLUTE_MAX_ROUNDS" ]; then
+    echo "ERROR: rounds array length ($TOTAL_ROUNDS) exceeds absolute safety limit ($ABSOLUTE_MAX_ROUNDS)."
+    exit 1
+  fi
+
+  # Total agents guard
+  TOTAL_AGENTS=$(jq -r '.totalAgents // 0' "$CONFIG_FILE" 2>/dev/null || echo 0)
+  if [ "$TOTAL_AGENTS" -gt "$MAX_TOTAL_AGENTS" ]; then
+    echo "ERROR: totalAgents ($TOTAL_AGENTS) exceeds absolute safety limit ($MAX_TOTAL_AGENTS)."
+    exit 1
+  fi
 fi
 
 echo "OK: $STATE_FILE passed validation."

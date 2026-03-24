@@ -6,8 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-23
+
 ### Added
 
+- Auto-update mechanism for seamless plugin updates via `/otterwise:ow-setup`
+- Clean terminal UI for `ow-setup` with structured PASS/FAIL/WARN diagnostics
+- Cache and config file migration on update (preserves research sessions across versions)
+- Version consistency checking across plugin.json, marketplace.json, and package.json
 - Auto pilot mode (`/otterwise:autopilot`) for autonomous multi-round research
 - Pause/resume/abort controls for auto pilot sessions
 - Enhanced `/otterwise:status` with auto pilot progress display

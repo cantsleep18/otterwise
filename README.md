@@ -24,6 +24,7 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 | **Jupyter Notebooks** | Every analysis produces reproducible `.ipynb` notebooks with inline figures |
 | **Agent Teams** | Parallel analysis by dynamically created teammate agents |
 | **Auto Pilot** | Multi-round autonomous research with intelligent direction selection |
+| **Auto-Update** | Seamless self-updating with cache migration and version checking via `ow-setup` |
 | **6 MCP Tools** | execute, notebook, state, install, interrupt, reset |
 | **Zero Dependencies** | Python worker uses only stdlib -- no `pip install` needed |
 
@@ -122,9 +123,9 @@ Each `report.md` has YAML frontmatter (`id`, `parent`, `related`, `status`) defi
 | `/otterwise:continue` | Expand the research graph into new directions |
 | `/otterwise:status` | Display the research graph as a tree |
 | `/otterwise:autopilot` | Run autonomous multi-round research on a dataset |
-| `/otterwise:autopilot-pause` | Pause a running auto pilot session |
-| `/otterwise:autopilot-resume` | Resume a paused auto pilot session |
+| `/otterwise:autopilot-pause` | Pause or resume a running auto pilot session (toggles) |
 | `/otterwise:autopilot-abort` | Abort auto pilot and generate partial results |
+| `/otterwise:ow-setup` | Setup, diagnose, and update Otterwise |
 
 ```
 Research Graph:
@@ -173,10 +174,32 @@ Create `.otterwise/autopilot.json` to customize behavior:
 ```
 
 ### Controls
-- **Pause**: `/otterwise:autopilot-pause` -- completes current round, then pauses
-- **Resume**: `/otterwise:autopilot-resume` -- continues from where it paused
+- **Pause/Resume**: `/otterwise:autopilot-pause` -- toggles pause state; completes current round before pausing
 - **Abort**: `/otterwise:autopilot-abort` -- stops immediately, generates partial report
 - **Status**: `/otterwise:status` -- shows auto pilot progress and research graph
+
+---
+
+## Auto-Update
+
+Otterwise can update itself seamlessly through the `ow-setup` command. When a new version is available, `ow-setup` detects it, downloads the update, migrates your cache and config files, and verifies everything works -- all in one step.
+
+### How It Works
+
+```bash
+/otterwise:ow-setup
+```
+
+The setup command runs a full diagnostic check and, if updates are available:
+
+1. **Detects** new versions by checking the remote repository
+2. **Downloads** the update (git pull from origin/main)
+3. **Migrates** cache and config files to the new format (preserving your research sessions)
+4. **Verifies** version consistency across plugin.json, marketplace.json, and package.json
+5. **Re-installs** npm dependencies if package.json changed
+6. **Re-runs** diagnostics to confirm everything is healthy
+
+Your existing `.otterwise/` research data is preserved across updates. Config files are automatically migrated to any new schema.
 
 ---
 
@@ -209,6 +232,7 @@ Create `.otterwise/autopilot.json` to customize behavior:
 otterwise/
   .claude-plugin/
     plugin.json            Plugin manifest
+    marketplace.json       Marketplace metadata
   agents/
     research-lead.md       DAG-aware research orchestrator
   hooks/
@@ -241,8 +265,8 @@ otterwise/
     continue/              /otterwise:continue
     status/                /otterwise:status
     autopilot/             /otterwise:autopilot
-    autopilot-pause/       /otterwise:autopilot-pause
-    autopilot-resume/      /otterwise:autopilot-resume
+    ow-setup/              /otterwise:ow-setup
+    autopilot-pause/       /otterwise:autopilot-pause (toggles pause/resume)
     autopilot-abort/       /otterwise:autopilot-abort
   settings.json            Claude Code permissions
 ```
@@ -257,12 +281,7 @@ Permissions are granted via `settings.json`:
 {
   "permissions": {
     "allow": [
-      "mcp__python-repl__execute_python",
-      "mcp__python-repl__start_notebook",
-      "mcp__python-repl__get_kernel_state",
-      "mcp__python-repl__install_package",
-      "mcp__python-repl__interrupt_execution",
-      "mcp__python-repl__reset_kernel"
+      "mcp__python-repl__python_repl"
     ]
   }
 }

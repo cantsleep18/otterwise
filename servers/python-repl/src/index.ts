@@ -6,9 +6,11 @@ import {
   handlePythonRepl,
 } from "./tool.js";
 
+declare const __PKG_VERSION__: string;
+
 const server = new McpServer({
   name: "otterwise-python-repl",
-  version: "1.0.0",
+  version: __PKG_VERSION__,
 });
 
 const bridge = new PythonBridge();

@@ -2,7 +2,7 @@
 sessionId: "20260323_143015"
 totalRounds: 5
 totalFindings: 23
-stoppingReason: "max-rounds"
+stoppingReason: "max-iterations"
 executedAt: "2026-03-23T14:30:15.000Z"
 ---
 
@@ -120,6 +120,6 @@ Missing values are concentrated in the Food/North intersection (row 16), affecti
 - Total research rounds: 5
 - Total findings discovered: 23
 - Average findings per round: 4.6
-- Stopping reason: max-rounds
+- Stopping reason: max-iterations
 - Total research time: 35m 00s
 - Final research graph depth: 3

@@ -1,11 +1,24 @@
 {
   "$schema": "autopilot-config",
-  "maxRounds": 5,
-  "maxTeamSize": 5,
+  "maxIterations": 5,
+  "maxConcurrentTeammates": 3,
   "stoppingThreshold": 0.85,
   "researchTimeoutMinutes": 30,
+  "explorationStrategy": "balanced",
   "seedPhrase": "autopilot-20260323-143015",
   "customStoppingCriteria": [],
+  "stopping": {
+    "minFindingsPerRound": 2,
+    "maxDeadEndRatio": 0.6
+  },
+  "scope": {
+    "focusAreas": null,
+    "excludeTopics": null,
+    "depthLimit": 4
+  },
+  "notifications": {
+    "progressUpdates": "per-round"
+  },
   "createdAt": "2026-03-23T14:30:15.000Z",
   "completedAt": null,
   "stoppingReason": null,

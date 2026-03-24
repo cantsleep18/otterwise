@@ -1,4 +1,7 @@
 import * as esbuild from "esbuild";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 
 await esbuild.build({
   entryPoints: ["src/index.ts"],
@@ -21,6 +24,7 @@ await esbuild.build({
   },
   define: {
     "import.meta.url": "__import_meta_url__",
+    "__PKG_VERSION__": JSON.stringify(pkg.version),
   },
   logLevel: "info",
 });
