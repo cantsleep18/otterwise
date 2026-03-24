@@ -1,5 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Claude_Code-Extension-blueviolet?style=for-the-badge" alt="Claude Code Extension" />
+  <img src="https://img.shields.io/badge/version-1.3.0-blue?style=for-the-badge" alt="Version 1.3.0" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -10,6 +11,55 @@
 Like an otter using tools to crack open shellfish, Otterwise autonomously cracks open your datasets -- spawning research teams and building an ever-expanding graph of discoveries.
 
 **Zero setup. Just plug in and research.**
+
+---
+
+## Install
+
+### From Marketplace
+
+```bash
+claude extension add otterwise
+```
+
+### From GitHub (Self-Updating)
+
+For auto-update support via git, clone the repository and run setup:
+
+```bash
+git clone https://github.com/cantsleep18/otterwise.git
+cd otterwise
+/otterwise:ow-setup
+```
+
+### First-Time Setup
+
+After installing, run the setup diagnostic to confirm everything is ready:
+
+```bash
+/otterwise:ow-setup
+```
+
+This checks your environment (Node.js, Python), validates config files, and reports any issues.
+
+### Installation Locations
+
+**Marketplace install:** Plugin code lives in `~/.claude/plugins/cache/otterwise/`. To enable auto-updates, clone the repo:
+```bash
+git clone https://github.com/cantsleep18/otterwise.git
+cd otterwise
+/otterwise:ow-setup
+```
+
+**Git install:** Plugin code is in your cloned directory. Auto-updates work automatically.
+
+### Updating
+
+Otterwise updates itself. Run `/otterwise:ow-setup` at any time -- it detects new versions, pulls changes, migrates your config and cache, and verifies the result. Your `.otterwise/` research data is always preserved.
+
+See [Auto-Update](#auto-update) for details on the update lifecycle.
+
+For more information about plugin architecture and how updates work, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -29,10 +79,13 @@ Like an otter using tools to crack open shellfish, Otterwise autonomously cracks
 ## Quick Start
 
 ```bash
-# 1. Install as Claude Code extension
-claude extension add /path/to/otterwise
+# 1. Install from marketplace
+claude extension add cantsleep18/otterwise
 
-# 2. Start researching (in any project)
+# 2. Verify setup
+/otterwise:ow-setup
+
+# 3. Start researching (in any project)
 /otterwise:research
 ```
 
@@ -136,23 +189,113 @@ Running the command again stops the dashboard. You can also use `/otterwise:dash
 
 ## Auto-Update
 
-Otterwise can update itself seamlessly through the `ow-setup` command. When a new version is available, `ow-setup` detects it, downloads the update, migrates your cache and config files, and verifies everything works -- all in one step.
+Otterwise updates itself through `/otterwise:ow-setup`. When a new version is available, ow-setup detects it, pulls the update, migrates config and cache, and verifies everything -- all in one step.
 
-### How It Works
+**Requires:** Git repo present (cloned from GitHub). Marketplace-only installs won't auto-update until you clone the repo.
+
+### Update Lifecycle
+
+```
+/otterwise:ow-setup
+        |
+        v
+  1. DETECT — git fetch origin main, compare HEAD
+        |       Shows commit count + version diff
+        |       Caches result (1-hour TTL to avoid frequent fetches)
+        v
+  2. PRE-CHECKS — verify remote origin, fast-forward capable
+        |          backup current config to .otterwise/update-backup/
+        |          Abort if security checks fail
+        v
+  3. PULL — git pull --ff-only (user confirms first)
+        |       Fails safely if worktree is dirty or history diverged
+        |       Rolls back automatically on failure
+        v
+  4. POST-CHECKS — validate no dangerous files, secrets, or hooks
+        |
+        v
+  5. MIGRATE — upgrade user data schemas (.otterwise/)
+        |        Tracked config (settings.json, hooks.json, .mcp.json) updated by git
+        |        User data backed up before migration (v1 → v2, etc.)
+        v
+  6. CACHE — clear plugin cache so Claude Code reloads from disk
+        |        ~/.claude/plugins/cache/otterwise/ removed
+        |        User must restart Claude Code session to load new version
+        v
+  7. VERIFY — version consistency across plugin.json + marketplace.json
+        |        Re-run full diagnostics on new version
+        v
+  Done — report summary
+```
+
+### What Gets Updated
+
+| Category | Files | Behavior |
+|----------|-------|----------|
+| **Tracked config** | `settings.json`, `.mcp.json`, `hooks/hooks.json`, `.claude-plugin/*.json` | Updated by `git pull` |
+| **User data schemas** | `.otterwise/config.json`, `.otterwise/autopilot.json`, `.otterwise/autopilot-state.json` | Schema migration (additive only, backup first) |
+| **Research data** | `.otterwise/*/report.md`, all node files | Never touched -- always preserved |
+| **Plugin cache** | `~/.claude/plugins/cache/otterwise/` | Cleared; Claude Code reloads from disk on next session |
+
+### Safety & Rollback
+
+- **Pre-update backup**: Current config stored in `.otterwise/update-backup/{timestamp}/`
+- **Fast-forward only**: No force-pull, prevents history rewrites
+- **Atomic security checks**: Pre- and post-pull validation; rolls back on failure
+- **Keep last 5 backups**: Old backups auto-pruned to avoid disk bloat
+
+If an update fails, ow-setup automatically rolls back to the pre-update state. You can then retry the update after fixing any issues.
+
+### Manual Cache Clear
+
+If you need to force a clean state, delete the plugin cache:
 
 ```bash
+rm -rf ~/.claude/plugins/cache/otterwise/
+```
+
+Then restart Claude Code and run `/otterwise:ow-setup` again.
+
+---
+
+## Troubleshooting
+
+### "Git repo not found" message after install
+You installed from the marketplace. To enable auto-updates:
+```bash
+git clone https://github.com/cantsleep18/otterwise.git
+cd otterwise
 /otterwise:ow-setup
 ```
 
-The setup command runs a full diagnostic check and, if updates are available:
+### Update fails with "diverged history"
+Your local branch has commits not in origin/main. Review changes:
+```bash
+git log --oneline origin/main..HEAD
+```
+Then decide: keep local commits (skip update) or rebase/reset to origin/main and retry.
 
-1. **Detects** new versions by checking the remote repository
-2. **Downloads** the update (git pull from origin/main)
-3. **Migrates** cache and config files to the new format (preserving your research sessions)
-4. **Verifies** version consistency across plugin.json, marketplace.json, and package.json
-5. **Re-runs** diagnostics to confirm everything is healthy
+### "Origin does not match expected repository"
+Your git remote points to a fork, not the canonical repo. Verify:
+```bash
+git remote get-url origin
+```
+Should be: `https://github.com/cantsleep18/otterwise.git`
 
-Your existing `.otterwise/` research data is preserved across updates. Config files are automatically migrated to any new schema.
+Update the remote if needed:
+```bash
+git remote set-url origin https://github.com/cantsleep18/otterwise.git
+git fetch origin
+/otterwise:ow-setup
+```
+
+### Plugin not picking up new version after update
+Claude Code caches the plugin. Restart your Claude Code session:
+1. Close Claude Code
+2. Reopen Claude Code
+3. Run a skill to trigger reload
+
+For more details on how caching and updates work, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
