@@ -1,4 +1,3 @@
-import matter from 'gray-matter';
 import type { ResearchNode, GraphData, ReportFrontmatter } from '../types';
 
 /**
@@ -15,13 +14,43 @@ export async function fetchReports(): Promise<GraphData> {
 }
 
 /**
+ * Browser-compatible frontmatter parser (replaces gray-matter).
+ */
+function parseFrontmatter(raw: string): { data: Record<string, unknown>; body: string } {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (!match) return { data: {}, body: raw };
+
+  const data: Record<string, unknown> = {};
+  for (const line of match[1].split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf(':');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let value: string | unknown = trimmed.slice(idx + 1).trim();
+    if (typeof value === 'string' && value.startsWith('[')) {
+      try { value = JSON.parse(value.replace(/'/g, '"')); } catch { value = []; }
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value)) {
+      value = parseInt(value, 10);
+    }
+    if (typeof value === 'string') {
+      value = value.replace(/^["']|["']$/g, '');
+    }
+    data[key] = value;
+  }
+
+  return { data, body: match[2] };
+}
+
+/**
  * Parse a report's raw markdown content into typed frontmatter and body.
  */
 export function parseReportContent(content: string): {
   frontmatter: ReportFrontmatter;
   body: string;
 } {
-  const { data, content: body } = matter(content);
+  const { data, body } = parseFrontmatter(content);
 
   // Support both parentIds (new) and parent (legacy) frontmatter
   let parentIds: string[] = [];
