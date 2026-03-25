@@ -8,10 +8,10 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<ResearchNode['status'], string> = {
-  completed: 'bg-green-500',
-  'in-progress': 'bg-yellow-500',
-  'dead-end': 'bg-red-500',
-  pending: 'bg-zinc-500',
+  completed: 'bg-blue-500',
+  'in-progress': 'bg-violet-400',
+  'dead-end': 'bg-neutral-600',
+  pending: 'bg-neutral-700',
 };
 
 const STATUS_LABELS: Record<ResearchNode['status'], string> = {
@@ -44,7 +44,7 @@ export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
           placeholder="Search nodes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-1.5 text-sm rounded bg-zinc-800 border border-zinc-700 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+          className="w-full px-3 py-1.5 text-xs rounded-md bg-neutral-950 border border-neutral-800 text-neutral-300 placeholder-neutral-600 focus:outline-none focus:border-neutral-700"
         />
       </div>
 
@@ -57,15 +57,15 @@ export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
             <button
               key={node.id}
               onClick={() => onSelectNode(node)}
-              className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center gap-2 ${
+              className={`w-full text-left px-3 py-1.5 rounded-md text-xs transition-colors flex items-center gap-2 ${
                 isSelected
-                  ? 'bg-zinc-700 text-zinc-100'
-                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                  ? 'bg-neutral-900 text-neutral-100'
+                  : 'text-neutral-500 hover:bg-neutral-950 hover:text-neutral-300'
               }`}
             >
               {/* Status dot */}
               <span
-                className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[node.status]}`}
+                className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_COLORS[node.status]}`}
                 title={STATUS_LABELS[node.status]}
               />
 
@@ -73,13 +73,13 @@ export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
               <span className="truncate flex-1 font-medium">{node.name}</span>
 
               {/* Status badge */}
-              <span className="text-xs text-zinc-500 flex-shrink-0">
+              <span className="text-xs text-neutral-600 flex-shrink-0">
                 {STATUS_LABELS[node.status]}
               </span>
 
               {/* Findings count badge */}
               {node.findings_count > 0 && (
-                <span className="text-xs bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                <span className="text-xs bg-neutral-900 text-neutral-500 px-1.5 py-0.5 rounded-full flex-shrink-0">
                   {node.findings_count}
                 </span>
               )}
@@ -88,7 +88,7 @@ export default function Sidebar({ nodes, selectedNode, onSelectNode }: Props) {
         })}
 
         {filtered.length === 0 && (
-          <p className="text-xs text-zinc-600 text-center py-4">No nodes found</p>
+          <p className="text-xs text-neutral-700 text-center py-4">No nodes found</p>
         )}
       </div>
     </div>

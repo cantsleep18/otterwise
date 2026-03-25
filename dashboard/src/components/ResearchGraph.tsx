@@ -10,31 +10,27 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<ResearchNode['status'], string> = {
-  completed: '#22c55e',
-  'in-progress': '#eab308',
-  'dead-end': '#ef4444',
-  pending: '#6b7280',
+  completed: '#3b82f6',
+  'in-progress': '#a78bfa',
+  'dead-end': '#525252',
+  pending: '#404040',
 };
 
-function nodeRadius(findingsCount: number): number {
-  return Math.min(4 + findingsCount * 0.5, 10);
-}
+const NODE_RADIUS = 3;
 
 export default function ResearchGraph({ graphData, selectedNode, onSelectNode }: Props) {
   const fgRef = useRef<ForceGraphMethods>();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Convert our GraphData to the format react-force-graph expects
   const forceData = useMemo(() => {
     const nodes = graphData.nodes.map((n) => ({ ...n }));
     const links = graphData.edges.map((e) => ({ source: e.source, target: e.target }));
     return { nodes, links };
   }, [graphData]);
 
-  // Auto-fit when data changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      fgRef.current?.zoomToFit(400, 40);
+      fgRef.current?.zoomToFit(400, 80);
     }, 300);
     return () => clearTimeout(timer);
   }, [forceData]);
@@ -54,39 +50,33 @@ export default function ResearchGraph({ graphData, selectedNode, onSelectNode }:
       const x = (node as { x?: number }).x ?? 0;
       const y = (node as { y?: number }).y ?? 0;
       const status = (node as { status?: ResearchNode['status'] }).status ?? 'pending';
-      const findings = (node as { findings_count?: number }).findings_count ?? 0;
       const name = (node as { name?: string }).name ?? '';
       const color = STATUS_COLORS[status];
-      const radius = nodeRadius(findings);
-
       const isSelected = selectedNode?.id === node.id;
 
-      // Glow for selected
       if (isSelected) {
         ctx.beginPath();
-        ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
-        ctx.fillStyle = `${color}30`;
+        ctx.arc(x, y, NODE_RADIUS + 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#3b82f610';
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5 / globalScale;
+        ctx.arc(x, y, NODE_RADIUS + 3, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#3b82f650';
+        ctx.lineWidth = 0.5;
         ctx.stroke();
       }
 
-      // Node circle
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = isSelected ? '#ffffff' : color;
+      ctx.arc(x, y, NODE_RADIUS, 0, 2 * Math.PI);
+      ctx.fillStyle = isSelected ? '#93c5fd' : color;
       ctx.fill();
 
-      // Label below node
-      const fontSize = Math.max(10 / globalScale, 2.5);
-      ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+      const fontSize = Math.max(9 / globalScale, 2);
+      ctx.font = `300 ${fontSize}px -apple-system, BlinkMacSystemFont, "Inter", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSelected ? '#ffffff' : '#a1a1aa';
-      ctx.fillText(name, x, y + radius + 3);
+      ctx.fillStyle = isSelected ? '#93c5fd' : '#525252';
+      ctx.fillText(name, x, y + NODE_RADIUS + 4);
     },
     [selectedNode],
   );
@@ -95,11 +85,9 @@ export default function ResearchGraph({ graphData, selectedNode, onSelectNode }:
     (node: { id?: string | number } & Record<string, unknown>, color: string, ctx: CanvasRenderingContext2D) => {
       const x = (node as { x?: number }).x ?? 0;
       const y = (node as { y?: number }).y ?? 0;
-      const findings = (node as { findings_count?: number }).findings_count ?? 0;
-      const radius = nodeRadius(findings);
 
       ctx.beginPath();
-      ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
+      ctx.arc(x, y, NODE_RADIUS + 8, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
     },
@@ -111,23 +99,23 @@ export default function ResearchGraph({ graphData, selectedNode, onSelectNode }:
       <ForceGraph2D
         ref={fgRef}
         graphData={forceData}
-        backgroundColor="#09090b"
+        backgroundColor="#000000"
         nodeCanvasObject={paintNode}
         nodeCanvasObjectMode={() => 'replace'}
         nodePointerAreaPaint={paintPointerArea}
         onNodeClick={handleNodeClick}
-        linkColor={() => '#ffffff20'}
-        linkDirectionalArrowLength={3}
+        linkColor={() => '#ffffff10'}
+        linkDirectionalArrowLength={2.5}
         linkDirectionalArrowRelPos={1}
-        linkDirectionalArrowColor={() => '#ffffff30'}
-        linkWidth={0.5}
+        linkDirectionalArrowColor={() => '#ffffff15'}
+        linkWidth={0.3}
         showPointerCursor={() => true}
         cooldownTicks={100}
         enableNodeDrag
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         dagMode="td"
-        dagLevelDistance={60}
+        dagLevelDistance={70}
       />
     </div>
   );

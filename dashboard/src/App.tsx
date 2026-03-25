@@ -9,9 +9,9 @@ import { ReportPanel } from './components/ReportPanel';
 const POLL_INTERVAL = 5000;
 
 const STATUS_DISPLAY: Record<AutopilotStatus['status'], { label: string; color: string }> = {
-  running: { label: 'Running', color: 'bg-green-500' },
-  paused: { label: 'Paused', color: 'bg-yellow-500' },
-  aborted: { label: 'Aborted', color: 'bg-red-500' },
+  running: { label: 'Running', color: 'bg-blue-500' },
+  paused: { label: 'Paused', color: 'bg-neutral-500' },
+  aborted: { label: 'Aborted', color: 'bg-neutral-600' },
 };
 
 export default function App() {
@@ -47,21 +47,21 @@ export default function App() {
   const statusInfo = autopilotStatus ? STATUS_DISPLAY[autopilotStatus.status] : null;
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100">
+    <div className="flex h-screen bg-black text-neutral-100">
       {/* Sidebar */}
-      <aside className="w-[250px] flex-shrink-0 border-r border-zinc-800 bg-zinc-900">
-        <div className="p-4 border-b border-zinc-800">
+      <aside className="w-[220px] flex-shrink-0 border-r border-neutral-900 bg-black">
+        <div className="p-4 border-b border-neutral-900">
           <div className="flex items-center justify-between">
-            <h1 className="text-base font-bold tracking-tight">Otterwise</h1>
+            <h1 className="text-sm font-medium tracking-wide text-neutral-400 uppercase">Otterwise</h1>
             {statusInfo && (
-              <span className="flex items-center gap-1.5 text-xs text-zinc-400">
-                <span className={`inline-block w-2 h-2 rounded-full ${statusInfo.color}`} />
+              <span className="flex items-center gap-1.5 text-xs text-neutral-500">
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${statusInfo.color}`} />
                 {statusInfo.label}
               </span>
             )}
           </div>
           {autopilotStatus && (
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-neutral-600 mt-1">
               {autopilotStatus.nodeCount} {autopilotStatus.nodeCount === 1 ? 'node' : 'nodes'}
             </p>
           )}
@@ -76,7 +76,7 @@ export default function App() {
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Graph area */}
-        <div className="flex-1 min-h-0 border-b border-zinc-800">
+        <div className="flex-1 min-h-0">
           <ResearchGraph
             graphData={graphData}
             selectedNode={selectedNode}
@@ -85,7 +85,7 @@ export default function App() {
         </div>
 
         {/* Detail panel */}
-        <div className="h-[300px] flex-shrink-0 border-t border-zinc-800 bg-zinc-900">
+        <div className="h-[300px] flex-shrink-0 border-t border-neutral-900 bg-black">
           <ReportPanel node={selectedNode} />
         </div>
       </main>

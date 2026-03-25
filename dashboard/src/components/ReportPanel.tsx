@@ -47,7 +47,7 @@ export function ReportPanel({ node }: Props) {
 
   if (!node) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-600 text-sm">
+      <div className="flex items-center justify-center h-full text-neutral-700 text-xs">
         Select a research node to view details
       </div>
     );
@@ -56,10 +56,10 @@ export function ReportPanel({ node }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center border-b border-zinc-800 bg-zinc-900 flex-shrink-0 px-4 py-2">
-        <span className="text-sm font-medium text-zinc-100">{node.name}</span>
+      <div className="flex items-center border-b border-neutral-900 bg-black flex-shrink-0 px-4 py-2">
+        <span className="text-xs font-medium text-neutral-200">{node.name}</span>
         {node.parentIds.length > 0 && (
-          <span className="ml-2 text-xs text-zinc-500">
+          <span className="ml-2 text-xs text-neutral-600">
             {node.parentIds.length === 1 ? '1 parent' : `${node.parentIds.length} parents`}
           </span>
         )}
