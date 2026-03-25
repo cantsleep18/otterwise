@@ -85,15 +85,22 @@ bash scripts/secure-update.sh post-update
 # 5. Read new version
 NEW_VERSION=$(cat .claude-plugin/plugin.json | grep version | head -1)
 
-# 6. Clear runtime cache so Claude Code reloads from {PLUGIN} on next session
+# 6. Stop running dashboard (if active) before clearing cache
+if [ -f "{PROJECT}/.otterwise/dashboard.pid" ]; then
+  PID=$(cat {PROJECT}/.otterwise/dashboard.pid)
+  kill "$PID" 2>/dev/null
+  rm -f {PROJECT}/.otterwise/dashboard.pid
+fi
+
+# 7. Clear runtime cache so Claude Code reloads from {PLUGIN} on next session
 rm -rf ~/.claude/plugins/cache/otterwise/
 
-# 7. Run migration on PROJECT data (if .otterwise/ exists in CWD)
+# 8. Run migration on PROJECT data (if .otterwise/ exists in CWD)
 if [ -d "{PROJECT}/.otterwise" ]; then
   bash scripts/migrate.sh
 fi
 
-# 8. Pop stash
+# 9. Pop stash
 git stash pop (only if stashed)
 ```
 
