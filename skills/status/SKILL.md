@@ -12,7 +12,7 @@ Display the current research graph status, including autopilot state when active
 1. Scan `.otterwise/nodes/*/report.md` for all node reports.
 2. Parse YAML frontmatter from each report to reconstruct the DAG.
 3. Build and display the graph visualization (see below).
-4. Show summary stats.
+4. Show summary stats (including cooldown count from `autopilot.json` and error count from `error.log`).
 5. If `.otterwise/autopilot.json` exists, display the **Autopilot Status** section.
 6. If no research exists, mention `/otterwise:research` to start.
 
@@ -34,7 +34,7 @@ Research Graph:
     └── ● missing-data + correlation-deep-dive (3 findings)  <- cross-branch
 ```
 
-Legend: `●` completed `○` in-progress `◌` pending `✗` dead-end
+Legend: `●` completed `○` in-progress `◌` pending `✗` dead-end `⏸` cooldown
 
 ### Cross-branch nodes
 
@@ -42,10 +42,11 @@ Nodes with multiple parents represent cross-branch combinations. Show them under
 
 ### Node label format
 
-- Completed: `● {name} ({findingsCount} findings)`
+- Completed: `● {name} ({findings_count} findings)`
 - In-progress: `○ {name} (expanding...)`
 - Pending: `◌ {name}`
 - Dead-end: `✗ {name} (dead-end)`
+- Cooldown: `⏸ {name} (cooldown — {failCount} failures)`
 
 ---
 
@@ -60,13 +61,17 @@ Summary:
   In-progress:    1
   Pending:        1
   Dead-ends:      0
+  Cooldown:       1
   Total findings: 17
+  Errors:         3
   DAG depth:      3
   Dataset:        path/to/data.csv
 ```
 
 - **DAG depth**: longest path from any root to any leaf.
 - **Dataset**: read from `.otterwise/config.json`.
+- **Cooldown**: count of nodes in the `cooldown` array of `autopilot.json` (nodes that hit the circuit breaker after 3+ consecutive failures). Omit the line if zero.
+- **Errors**: count of lines in `.otterwise/error.log`. Omit the line if the file does not exist or is empty.
 
 ---
 
@@ -87,6 +92,7 @@ Autopilot:
   Direction:  {current expansion direction from latest node's goals}
   DAG depth:  {current DAG depth}
   Elapsed:    {elapsed since createdAt}
+  Last activity: {timestamp of most recent node's startedAt or completedAt}
 
   Expansion History:
     1. ● basic-profiling (5 findings)
@@ -98,12 +104,14 @@ Autopilot:
 - For completed nodes: show `●` with findings count.
 - For the current in-progress node: show `○` with `(expanding...)`.
 - **Direction**: read from the latest node's frontmatter `goals` field; shows what the autopilot is currently investigating.
+- **Last activity**: the most recent `startedAt` or `completedAt` timestamp from the nodes array in `autopilot.json`. Helps monitor whether the loop is still making progress.
 
 ### Paused (`autopilot-state.json` command is `"pause"`)
 
 ```
 Autopilot:
-  Status:     PAUSED
+  Status:     ⏸ PAUSED
+  Reason:     {reason from autopilot-state.json, if present}
   Nodes:      {totalNodes}
   Findings:   {totalFindings} total
   Paused at:  {updatedAt from autopilot-state.json}
@@ -115,6 +123,7 @@ Autopilot:
     ...
 ```
 
+- Omit the `Reason:` line if `reason` is null or absent in `autopilot-state.json`.
 - Autopilot will resume from where it left off when unpaused.
 
 ### Aborting (`autopilot-state.json` command is `"abort"`)
@@ -150,14 +159,19 @@ Autopilot:
 ## Data Sources
 
 **`.otterwise/nodes/{node-id}/report.md`** -- DAG source of truth via YAML frontmatter:
-- `id`, `name`, `parents` (array of parent IDs), `status`, `findingsCount`, `goals`, `dataset`
+- `id`, `name`, `parentIds` (array of parent IDs), `status`, `findings_count`, `goals`, `dataset`
+- Node IDs use the format `YYYYMMDD_HHMMSS_{8hex}_{name}`. Display the `name` field (not the full ID) in graph labels and expansion history.
 
 **`.otterwise/config.json`** -- dataset path, goals (immutable after init)
 
 **`.otterwise/autopilot.json`** -- autopilot session state:
 - `status` (`"running"` | `"aborted"`), `totalFindings`, `createdAt`
-- `nodes[]`: each with `id`, `parentIds`, `status`, `findingsCount`, `startedAt`, `completedAt`
+- `nodes[]`: each with `id`, `parentIds`, `status`, `findings_count`, `name`, `startedAt`, `completedAt`
+- `cooldown[]`: array of node names/candidates that hit the circuit breaker (3+ consecutive failures)
 
 **`.otterwise/autopilot-state.json`** -- live control signal (may not exist):
 - `command`: `"running"` | `"pause"` | `"abort"`
 - `updatedAt`, `reason`
+
+**`.otterwise/error.log`** -- append-only error log (may not exist):
+- One error per line. Count lines to show error total in summary stats.

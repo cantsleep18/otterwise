@@ -35,7 +35,7 @@ The user should provide:
 ### 3. Understand Research History
 - Use Glob to find all `.otterwise/nodes/**/report.md` files
 - Read each report.md -- parse the YAML frontmatter:
-  - `id`: unique node identifier (YYYYMMDD_HHMMSS_XXXX)
+  - `id`: unique node identifier (YYYYMMDD_HHMMSS_{8hex}_{name})
   - `parentIds`: list of parent node IDs (empty for root nodes)
   - `related`: sibling/related node IDs
   - `status`: completed, in-progress, dead-end
@@ -64,9 +64,10 @@ team_name: "research-{YYYYMMDD-HHMMSS}-{short-topic}"
 ```
 
 #### 5b. Generate a node ID and create output directories
-Generate a node ID in the format `YYYYMMDD_HHMMSS_XXXX` (where XXXX is a 4-character hex hash).
+Generate a node ID in the format `YYYYMMDD_HHMMSS_{8hex}_{name}` (where {8hex} is an 8-character hex hash and {name} is a short descriptive topic slug).
+Example: `20260325_143015_a1b2c3d4_한국주식시장분석`
 ```bash
-mkdir -p .otterwise/nodes/{node-id}/{teammate-1,teammate-2,...}
+mkdir -p .otterwise/nodes/{node-id}/researcher-{1,2,...}
 ```
 
 #### 5c. Create tasks for tracking
@@ -91,9 +92,10 @@ Each teammate's `prompt` MUST include ALL of the following:
 4. **Team name**: The actual team name so they can use SendMessage
 5. **Teammate list**: Names of all teammates for cross-communication
 6. **Analysis approach**: Use built-in capabilities (Read files, Bash for scripting/computation, Grep for searching). No specific tools are prescribed -- researchers should use whatever approach works best for the analysis.
-7. **Output directory**: Full path to their output folder (`.otterwise/nodes/{node-id}/teammate-N/`)
+7. **Output directory**: Full path to their output folder (`.otterwise/nodes/{node-id}/researcher-{K}/`)
 8. **Summary format**: Write `summary.md` using the format below
 9. **Instruction to send findings to team-lead via SendMessage when done**
+10. **Error escalation**: If an unrecoverable error occurs, send `RESEARCHER_ERROR: {description}` to team-lead via SendMessage before marking task completed
 
 ### 6. Monitor Progress
 Poll **TaskList** periodically until ALL teammate tasks show status `completed`.
@@ -111,7 +113,7 @@ Create `report.md` in the node folder (`.otterwise/nodes/{node-id}/report.md`) w
 
 ```yaml
 ---
-id: "{YYYYMMDD_HHMMSS}_{4-char-hex-hash}"
+id: "{YYYYMMDD_HHMMSS}_{8hex}_{name}"
 name: "{descriptive-kebab-case-name}"
 parentIds: []
 related: []
@@ -133,6 +135,17 @@ Report body structure:
 3. Use **TeamDelete** to remove the team
 4. Report results to the user
 
+## Data-Driven Requirements
+All research must be evidence-based:
+1. Use WebSearch to validate key findings against published sources
+2. Use WebFetch to pull data from public APIs when applicable
+3. Every key finding in summary.md must include [source: URL]
+4. Confidence assessment:
+   - High: 2+ independent external sources confirm
+   - Medium: 1 external source confirms
+   - Low: Dataset analysis only -- mark with ⚠️
+5. Claims without external data backing are not acceptable for High/Medium confidence
+
 ## Teammate Summary Format
 Each teammate writes `summary.md` in their output directory:
 
@@ -146,10 +159,16 @@ Each teammate writes `summary.md` in their output directory:
 [How objectives were decomposed into steps]
 
 ## Key Findings
-[3-5 key results with specific numbers]
+- Finding 1 [source: url]
+- Finding 2 [source: url]
+- [3-5 key results with specific numbers, each citing a source]
+
+## Sources
+| Source | URL | Accessed |
+|--------|-----|----------|
 
 ## Confidence
-[High / Medium / Low] -- [justification]
+[High / Medium / Low] -- [justification per Data-Driven Requirements]
 
 ## Dead Ends
 [What didn't work]
@@ -164,5 +183,5 @@ Each teammate writes `summary.md` in their output directory:
 - Each research node is a folder in `.otterwise/nodes/`
 - Parent-child relationships tracked via report.md YAML frontmatter (`parentIds`)
 - Never duplicate analysis that's already been done (read previous reports!)
-- ID format: YYYYMMDD_HHMMSS_XXXX where XXXX is a 4-character hex hash
+- ID format: YYYYMMDD_HHMMSS_{8hex}_{name} (8-char hex hash + descriptive topic slug, e.g. `20260325_143015_a1b2c3d4_한국주식시장분석`)
 - Recommended team size: 3-5 teammates for most datasets

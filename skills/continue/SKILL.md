@@ -18,10 +18,16 @@ The user can optionally specify:
 1. Verify `.otterwise/` exists and has at least one completed research node
 2. Read `.otterwise/config.json` for dataset info
 
-### 2. Understand the Research DAG
+### 2. Check Autopilot State (if active)
+If `.otterwise/autopilot-state.json` exists, read it and check the `command` field:
+- **`"running"`**: Proceed normally.
+- **`"pause"`**: Tell the user the autopilot session is paused. They can resume with `/otterwise:autopilot-pause` before continuing.
+- **`"abort"`**: Tell the user the autopilot session has been aborted (terminal state). Manual continue is still allowed — proceed normally.
+
+### 3. Understand the Research DAG
 - Use Glob to find all `.otterwise/nodes/**/report.md` files
 - Read each report.md — parse the YAML frontmatter:
-  - `id`: unique node identifier (YYYYMMDD_HHMMSS_XXXX)
+  - `id`: unique node identifier (YYYYMMDD_HHMMSS_{8hex}_{name})
   - `parentIds`: parent node IDs (empty for root nodes)
   - `related`: sibling/related node IDs
   - `status`: completed, in-progress, dead-end
@@ -29,7 +35,7 @@ The user can optionally specify:
 - Read the full content of each report to understand what was discovered
 - Build a mental model of the research DAG — identify leaf nodes, dead ends, and promising branches
 
-### 3. Plan DAG Expansion
+### 4. Plan DAG Expansion
 Based on the existing DAG, decide where to add new nodes:
 - **Deepen**: Expand leaf nodes with promising findings
 - **Branch**: Fork from nodes where dead ends suggest adjacent unexplored topics
@@ -39,36 +45,36 @@ Based on the existing DAG, decide where to add new nodes:
 If the user provided a focus direction, prioritize that.
 If the user specified a node, expand from that node.
 
-### 4. Design Objectives
+### 5. Design Objectives
 Create 3-5 sets of objective bullet points, one per teammate. Each set should:
 - Be specific and actionable
 - Reference specific parent node IDs and their findings
 - Be independent enough for parallel execution
 
-### 5. Create Agent Team and Spawn Researchers
+### 6. Create Agent Team and Spawn Researchers
 
 IMPORTANT: You are the team lead. Create the team and spawn teammates DIRECTLY.
 
-#### 5a. Create the team
+#### 6a. Create the team
 Use **TeamCreate** with a descriptive name:
 ```
 team_name: "research-{YYYYMMDD-HHMMSS}-{short-topic}"
 ```
 
-#### 5b. Create output directories
+#### 6b. Create output directories
 Each new node gets its own directory under `.otterwise/nodes/`:
 ```bash
 mkdir -p .otterwise/nodes/{node-id-1} .otterwise/nodes/{node-id-2} ...
 ```
-Generate node IDs using the format `YYYYMMDD_HHMMSS_XXXX` (XXXX = 4-char hex hash).
+Generate node IDs using the format `YYYYMMDD_HHMMSS_{8hex}_{name}` where `{8hex}` is an 8-character hex hash and `{name}` is a descriptive kebab-case name (e.g., `20260325_143000_a1b2c3d4_correlation-analysis`).
 
-#### 5c. Create tasks for tracking
+#### 6c. Create tasks for tracking
 Use **TaskCreate** to create one task per teammate.
 
-#### 5d. Spawn ALL teammates in a SINGLE message
+#### 6d. Spawn ALL teammates in a SINGLE message
 Use multiple parallel **Agent** tool calls with:
 - `subagent_type`: `"general-purpose"`
-- `team_name`: the team name from step 5a
+- `team_name`: the team name from step 6a
 - `name`: `"researcher-N"`
 - `mode`: `"bypassPermissions"`
 - `run_in_background`: `true`
@@ -79,24 +85,25 @@ Each teammate's `prompt` MUST include ALL of the following:
 3. **Task ID**: Their task ID, with instruction to mark it completed via TaskUpdate
 4. **Team name**: The actual team name so they can use SendMessage
 5. **Teammate list**: Names of all teammates for cross-communication
-6. **Analysis approach**: Use built-in capabilities (Bash, Read, Write, etc.) for data analysis
-7. **Output directory**: Full path to their node directory (`.otterwise/nodes/{node-id}/`)
-8. **Summary format**: Write `summary.md` using the format below
-9. **Parent findings**: Key context from parent node reports so they build on prior work
-10. **Instruction to send findings to team-lead via SendMessage when done**
+6. **Analysis approach**: Use built-in capabilities (Bash, Read, Write, etc.) for data analysis. Use **WebSearch** and **WebFetch** to find relevant external context, benchmarks, or domain knowledge.
+7. **Source citation rule**: Every key finding must include `[source: URL]` for external sources or `[source: dataset analysis]` for findings derived from the data directly.
+8. **Output directory**: Full path to their node directory (`.otterwise/nodes/{node-id}/`)
+9. **Summary format**: Write `summary.md` using the format below
+10. **Parent findings**: Key context from parent node reports so they build on prior work
+11. **Error escalation**: If a critical error occurs (dataset unreadable, tool failure, no results after exhausting approaches), send a message to `team-lead` describing the error before marking the task completed.
+12. **Instruction to send findings to team-lead via SendMessage when done**
 
-### 6. Monitor, Collect, Synthesize
+### 7. Monitor, Collect, Synthesize
 - Poll **TaskList** until all teammate tasks complete
 - Read each teammate's `summary.md` from their node directory
 - Synthesize findings across all new nodes
 
-### 7. Write Report
+### 8. Write Report
 Create `report.md` in each new node's directory with YAML frontmatter:
 
 ```yaml
 ---
-id: "{YYYYMMDD_HHMMSS}_{4-char-hex-hash}"
-name: "{descriptive-kebab-case-name}"
+id: "{YYYYMMDD_HHMMSS}_{8-char-hex}_{descriptive-kebab-case-name}"
 parentIds:
   - "{parent-node-id}"
 related:
@@ -113,7 +120,7 @@ Report body structure:
 - Dead Ends & Branch Points
 - Open Questions (candidates for further DAG expansion)
 
-### 8. Clean Up
+### 9. Clean Up
 1. Send shutdown requests to all teammates
 2. Use **TeamDelete** to remove the team
 3. Report results and updated DAG state to the user
@@ -141,6 +148,9 @@ Each teammate writes `summary.md` in their node directory:
 
 ## Suggested Follow-ups
 [1-3 directions for further DAG expansion]
+
+## Sources
+[List all URLs referenced in findings, one per line]
 ```
 
 ## Important Rules
@@ -149,4 +159,6 @@ Each teammate writes `summary.md` in their node directory:
 - Reference parent node findings in teammate prompts so they build on prior work
 - All node directories live under `.otterwise/nodes/{node-id}/`
 - Parent-child relationships tracked via report.md YAML frontmatter `parentIds`
-- ID format: YYYYMMDD_HHMMSS_XXXX where XXXX is a 4-character hex hash
+- ID format: `YYYYMMDD_HHMMSS_{8hex}_{name}` where `{8hex}` is an 8-character hex hash and `{name}` is a descriptive kebab-case name
+- Researchers must use **WebSearch/WebFetch** for external context — all key findings require `[source: URL]` or `[source: dataset analysis]`
+- If an autopilot session is paused, inform the user before proceeding. If aborted, manual continue is still allowed.

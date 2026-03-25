@@ -10,6 +10,12 @@
 
 set -euo pipefail
 
+# Only validate autopilot-state.json writes; skip everything else
+FILE_PATH="${TOOL_INPUT_file_path:-}"
+if [[ "$FILE_PATH" != *autopilot-state.json ]]; then
+  exit 0
+fi
+
 STATE_FILE=".otterwise/autopilot-state.json"
 
 # If no state file exists yet, nothing to validate
@@ -19,30 +25,26 @@ fi
 
 # Ensure the file is valid JSON
 if ! jq empty "$STATE_FILE" 2>/dev/null; then
-  echo "ERROR: $STATE_FILE is not valid JSON."
+  echo "ERROR: autopilot-state.json is not valid JSON"
   exit 1
 fi
 
 # --- Required fields ---
-MISSING=()
-for field in command updatedAt; do
-  val=$(jq -r ".$field // empty" "$STATE_FILE")
-  if [ -z "$val" ]; then
-    MISSING+=("$field")
-  fi
-done
+COMMAND=$(jq -r '.command // empty' "$STATE_FILE")
+if [ -z "$COMMAND" ]; then
+  echo "ERROR: missing required field 'command'"
+  exit 1
+fi
 
-if [ ${#MISSING[@]} -gt 0 ]; then
-  echo "ERROR: $STATE_FILE missing required fields: ${MISSING[*]}"
+UPDATED_AT=$(jq -r '.updatedAt // empty' "$STATE_FILE")
+if [ -z "$UPDATED_AT" ]; then
+  echo "ERROR: missing required field 'updatedAt'"
   exit 1
 fi
 
 # --- Command validation ---
-COMMAND=$(jq -r '.command' "$STATE_FILE")
-VALID_COMMANDS="running pause abort"
-
-if ! echo "$VALID_COMMANDS" | grep -qw "$COMMAND"; then
-  echo "ERROR: Invalid command '$COMMAND'. Must be one of: $VALID_COMMANDS"
+if [[ "$COMMAND" != "running" && "$COMMAND" != "pause" && "$COMMAND" != "abort" ]]; then
+  echo "ERROR: invalid command '$COMMAND', must be one of: running, pause, abort"
   exit 1
 fi
 
@@ -53,5 +55,5 @@ if [ "$REASON_TYPE" != "string" ] && [ "$REASON_TYPE" != "null" ]; then
   exit 1
 fi
 
-echo "OK: $STATE_FILE passed validation."
+echo "OK: autopilot-state.json passed validation."
 exit 0

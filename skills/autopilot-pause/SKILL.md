@@ -23,12 +23,12 @@ Toggle pause/resume on a running autopilot session. Pausing delays the next EVAL
 
 Based on the current `command` value:
 
-- **If `"running"` or `"resume"`**: Write `{ "command": "pause", "updatedAt": "<ISO-timestamp>", "reason": null }` to `.otterwise/autopilot-state.json`. Display:
+- **If `"running"`**: Write `{ "command": "pause", "updatedAt": "<ISO-timestamp>", "reason": null }` to `.otterwise/autopilot-state.json`. Display:
   ```
   Pause requested. The current round will complete before pausing.
   ```
 
-- **If `"pause"`**: Write `{ "command": "resume", "updatedAt": "<ISO-timestamp>", "reason": null }` to `.otterwise/autopilot-state.json`. Display:
+- **If `"pause"`**: Write `{ "command": "running", "updatedAt": "<ISO-timestamp>", "reason": null }` to `.otterwise/autopilot-state.json`. Display:
   ```
   Autopilot resumed. The infinite loop continues.
   ```
@@ -42,7 +42,7 @@ Based on the current `command` value:
 
 - This skill runs in a **separate Claude session** from the autopilot — it only writes a file; the autopilot loop reads it between rounds
 - Pause is not instant — the current round finishes before the orchestrator checks the control signal
-- Resume continues the infinite expansion loop from where it left off
+- Resume is an action (not a state) — it sets `command` back to `"running"`. Valid states are: `running`, `pause`, `abort`
 - If no `autopilot-state.json` exists, there is no active session to control
 - Always use ISO 8601 timestamps for the `updatedAt` field
 - Never modify `.otterwise/autopilot.json` — this skill only touches `autopilot-state.json`

@@ -26,6 +26,7 @@ export type {
   AutopilotNode,
   AutopilotState,
   AutopilotScenario,
+  CooldownEntry,
 } from "./autopilot-scenarios.js";
 
 // ── File paths for static fixtures ──────────────────────────────
@@ -43,4 +44,6 @@ export const fixturePaths = {
   autopilotConfig: join(__dirname, "autopilot-config.json"),
   autopilotStateRunning: join(__dirname, "autopilot-state-running.json"),
   autopilotStatePaused: join(__dirname, "autopilot-state-paused.json"),
+  summaryWithSources: join(__dirname, "summary-with-sources.md"),
+  summaryNoSources: join(__dirname, "summary-no-sources.md"),
 };

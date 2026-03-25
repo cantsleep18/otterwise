@@ -59,7 +59,7 @@ export const configs = {
 export interface ReportFrontmatter {
   id: string;
   name: string;
-  parent: string | null;
+  parentIds: string[];
   related: string[];
   dataset: string;
   status: "completed" | "in-progress" | "dead-end";
@@ -69,9 +69,9 @@ export interface ReportFrontmatter {
 export const reportFrontmatter = {
   /** Root node — first research session */
   root: {
-    id: "20250125_103000_a1b2",
+    id: "20250125_103000_a1b2c3d4_initial-profiling",
     name: "initial-profiling",
-    parent: null,
+    parentIds: [],
     related: [],
     dataset: "sample-dataset.csv",
     status: "completed" as const,
@@ -80,10 +80,10 @@ export const reportFrontmatter = {
 
   /** Child node — deeper analysis */
   child: {
-    id: "20250126_140000_c3d4",
+    id: "20250126_140000_c3d4e5f6_revenue-deep-dive",
     name: "revenue-deep-dive",
-    parent: "20250125_103000_a1b2",
-    related: ["20250125_103000_a1b2"],
+    parentIds: ["20250125_103000_a1b2c3d4_initial-profiling"],
+    related: ["20250125_103000_a1b2c3d4_initial-profiling"],
     dataset: "sample-dataset.csv",
     status: "completed" as const,
     findings_count: 3,
@@ -91,10 +91,13 @@ export const reportFrontmatter = {
 
   /** Dead-end node */
   deadEnd: {
-    id: "20250126_160000_e5f6",
+    id: "20250126_160000_e5f6a7b8_time-series-attempt",
     name: "time-series-attempt",
-    parent: "20250125_103000_a1b2",
-    related: ["20250125_103000_a1b2", "20250126_140000_c3d4"],
+    parentIds: ["20250125_103000_a1b2c3d4_initial-profiling"],
+    related: [
+      "20250125_103000_a1b2c3d4_initial-profiling",
+      "20250126_140000_c3d4e5f6_revenue-deep-dive",
+    ],
     dataset: "sample-dataset.csv",
     status: "dead-end" as const,
     findings_count: 0,
@@ -102,9 +105,9 @@ export const reportFrontmatter = {
 
   /** In-progress node */
   inProgress: {
-    id: "20250127_090000_g7h8",
+    id: "20250127_090000_f7a8b9c0_customer-segmentation",
     name: "customer-segmentation",
-    parent: "20250126_140000_c3d4",
+    parentIds: ["20250126_140000_c3d4e5f6_revenue-deep-dive"],
     related: [],
     dataset: "sample-dataset.csv",
     status: "in-progress" as const,
@@ -116,6 +119,10 @@ export const reportFrontmatter = {
 
 /** Build a complete report.md string from frontmatter and body */
 export function buildReportMd(fm: ReportFrontmatter, body: string): string {
+  const parentIdsYaml =
+    fm.parentIds.length > 0
+      ? fm.parentIds.map((p) => `  - "${p}"`).join("\n")
+      : "[]";
   const relatedYaml =
     fm.related.length > 0
       ? fm.related.map((r) => `  - "${r}"`).join("\n")
@@ -124,7 +131,8 @@ export function buildReportMd(fm: ReportFrontmatter, body: string): string {
   return `---
 id: "${fm.id}"
 name: "${fm.name}"
-parent: ${fm.parent ? `"${fm.parent}"` : "null"}
+parentIds:
+${fm.parentIds.length > 0 ? parentIdsYaml : "  []"}
 related:
 ${fm.related.length > 0 ? relatedYaml : "  []"}
 dataset: "${fm.dataset}"
