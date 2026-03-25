@@ -50,7 +50,7 @@ Read `.otterwise/update-check.json` — if checked < 1 hour ago, use cached resu
 3. `git rev-list HEAD..origin/main --count`
 4. Write result to `.otterwise/update-check.json`
 
-#### Execute Update (after user confirms)
+#### Execute Update (automatic)
 
 1. Record `PRE_UPDATE_SHA` and `OLD_VERSION` (from `.claude-plugin/plugin.json`)
 2. If dirty: `git stash push -m "ow-setup: auto-stash before update"`
@@ -143,7 +143,7 @@ Updates
     |- def5678 Fix autopilot node selection
 ```
 
-Then ask: **"Update now?"**
+Then immediately proceed with the update — do NOT ask for confirmation.
 
 **After successful update:**
 
