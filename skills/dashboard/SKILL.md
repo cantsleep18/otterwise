@@ -37,10 +37,11 @@ Usage: `/otterwise:dashboard` (toggle), `/otterwise:dashboard start`, `/otterwis
    ```bash
    cd {PLUGIN_ROOT}/dashboard && npm install
    ```
-4. Launch the dev server in the background:
+4. Launch the dev server in the background with `OTTERWISE_DIR` pointing to the **user's project** `.otterwise/` directory (NOT the plugin cache):
    ```bash
-   cd {PLUGIN_ROOT}/dashboard && npx vite --port 5173
+   cd {PLUGIN_ROOT}/dashboard && OTTERWISE_DIR={CWD}/.otterwise npx vite --port 5173
    ```
+   `{CWD}` is the user's current working directory (the project root where `.otterwise/` lives).
    Use `Bash(run_in_background: true)` so the server runs detached.
 5. Write the background process PID to `.otterwise/dashboard.pid`.
 6. Display:
