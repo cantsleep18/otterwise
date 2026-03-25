@@ -4,53 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import fs from 'fs';
 
-interface ReportFrontmatter {
-  id: string;
-  name: string;
-  parentIds: string[];
-  dataset: string;
-  status: string;
-  findingsCount: number;
-}
-
 interface ReportEntry {
   path: string;
-  frontmatter: ReportFrontmatter;
   content: string;
-}
-
-function parseFrontmatter(raw: string): { frontmatter: Record<string, unknown>; content: string } {
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-  if (!match) return { frontmatter: {}, content: raw };
-
-  const fm: Record<string, unknown> = {};
-  for (const line of match[1].split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const idx = trimmed.indexOf(':');
-    if (idx === -1) continue;
-    const key = trimmed.slice(0, idx).trim();
-    let value: string | unknown = trimmed.slice(idx + 1).trim();
-    // Parse YAML arrays: ["a", "b"] or []
-    if (typeof value === 'string' && value.startsWith('[')) {
-      try {
-        value = JSON.parse(value.replace(/'/g, '"'));
-      } catch {
-        value = [];
-      }
-    }
-    // Parse numbers
-    if (typeof value === 'string' && /^\d+$/.test(value)) {
-      value = parseInt(value, 10);
-    }
-    // Strip surrounding quotes
-    if (typeof value === 'string') {
-      value = value.replace(/^["']|["']$/g, '');
-    }
-    fm[key] = value;
-  }
-
-  return { frontmatter: fm, content: match[2] };
 }
 
 function otterwiseApiPlugin(): Plugin {
@@ -75,18 +31,9 @@ function otterwiseApiPlugin(): Plugin {
               if (!fs.existsSync(reportPath)) continue;
 
               const raw = fs.readFileSync(reportPath, 'utf-8');
-              const { frontmatter, content } = parseFrontmatter(raw);
               reports.push({
                 path: `nodes/${nodeDir.name}/report.md`,
-                frontmatter: {
-                  id: (frontmatter.id as string) || nodeDir.name,
-                  name: (frontmatter.name as string) || '',
-                  parentIds: (frontmatter.parentIds as string[]) || [],
-                  dataset: (frontmatter.dataset as string) || '',
-                  status: (frontmatter.status as string) || 'unknown',
-                  findingsCount: (frontmatter.findingsCount as number) || 0,
-                },
-                content,
+                content: raw,
               });
             }
           }
