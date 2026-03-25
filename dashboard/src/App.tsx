@@ -87,7 +87,7 @@ export default function App() {
       </aside>
 
       {/* Graph */}
-      <div className="flex-1 min-w-0 overflow-hidden">
+      <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
         <ResearchGraph
           graphData={graphData}
           selectedNode={selectedNode}
@@ -95,12 +95,10 @@ export default function App() {
         />
       </div>
 
-      {/* Report panel — right side, full height */}
-      {selectedNode && (
-        <aside className="w-[420px] flex-shrink-0 border-l border-neutral-900 bg-black overflow-hidden">
-          <ReportPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
-        </aside>
-      )}
+      {/* Report panel — always visible on right */}
+      <aside className="w-[420px] flex-shrink-0 border-l border-neutral-900 bg-black overflow-hidden">
+        <ReportPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+      </aside>
     </div>
   );
 }
