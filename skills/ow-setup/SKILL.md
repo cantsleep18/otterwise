@@ -64,6 +64,21 @@ git rev-list HEAD..origin/main --count
 
 If count > 0, updates are available. Show commit list and proceed automatically.
 
+#### Cache Sync Check
+
+Even if no remote updates, verify the runtime cache matches the plugin source. The cache at `{CACHE}` can become stale if a previous update failed to rebuild it.
+
+```bash
+# Compare a key file between {PLUGIN} and {CACHE}
+# If {CACHE} doesn't exist OR any source file differs, clear and let Claude Code rebuild
+if [ ! -d "{CACHE}" ] || ! diff -q {PLUGIN}/hooks/hooks.json {CACHE}/otterwise/1.3.0/hooks/hooks.json >/dev/null 2>&1; then
+  rm -rf {CACHE}
+  echo "DONE  Cache cleared (stale)"
+fi
+```
+
+If cache was cleared, report `DONE  Cache cleared (stale)` and tell user to restart session.
+
 #### Execute Update (automatic — no confirmation)
 
 ```bash
