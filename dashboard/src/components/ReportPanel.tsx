@@ -81,7 +81,7 @@ export function ReportPanel({ node }: Props) {
           {!loading && !error && reportContent && (
             <div className="otterwise-markdown">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {reportContent}
+                {reportContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')}
               </ReactMarkdown>
             </div>
           )}

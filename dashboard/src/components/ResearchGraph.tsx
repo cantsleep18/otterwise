@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<ResearchNode['status'], string> = {
 };
 
 function nodeRadius(findingsCount: number): number {
-  return Math.min(6 + findingsCount * 2, 20);
+  return Math.min(4 + findingsCount * 0.5, 10);
 }
 
 export default function ResearchGraph({ graphData, selectedNode, onSelectNode }: Props) {
@@ -59,28 +59,34 @@ export default function ResearchGraph({ graphData, selectedNode, onSelectNode }:
       const color = STATUS_COLORS[status];
       const radius = nodeRadius(findings);
 
-      // Selected ring
-      if (selectedNode?.id === node.id) {
+      const isSelected = selectedNode?.id === node.id;
+
+      // Glow for selected
+      if (isSelected) {
         ctx.beginPath();
-        ctx.arc(x, y, radius + 3, 0, 2 * Math.PI);
+        ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
+        ctx.fillStyle = `${color}30`;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5 / globalScale;
         ctx.stroke();
       }
 
       // Node circle
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
+      ctx.fillStyle = isSelected ? '#ffffff' : color;
       ctx.fill();
 
       // Label below node
-      const fontSize = Math.max(12 / globalScale, 3);
-      ctx.font = `${fontSize}px sans-serif`;
+      const fontSize = Math.max(10 / globalScale, 2.5);
+      ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(name, x, y + radius + 2);
+      ctx.fillStyle = isSelected ? '#ffffff' : '#a1a1aa';
+      ctx.fillText(name, x, y + radius + 3);
     },
     [selectedNode],
   );
@@ -105,19 +111,23 @@ export default function ResearchGraph({ graphData, selectedNode, onSelectNode }:
       <ForceGraph2D
         ref={fgRef}
         graphData={forceData}
-        backgroundColor="#0a0a0a"
+        backgroundColor="#09090b"
         nodeCanvasObject={paintNode}
         nodeCanvasObjectMode={() => 'replace'}
         nodePointerAreaPaint={paintPointerArea}
         onNodeClick={handleNodeClick}
-        linkColor={() => '#ffffff40'}
-        linkDirectionalArrowLength={4}
+        linkColor={() => '#ffffff20'}
+        linkDirectionalArrowLength={3}
         linkDirectionalArrowRelPos={1}
-        linkDirectionalArrowColor={() => '#ffffff40'}
-        linkWidth={1}
+        linkDirectionalArrowColor={() => '#ffffff30'}
+        linkWidth={0.5}
         showPointerCursor={() => true}
         cooldownTicks={100}
         enableNodeDrag
+        d3AlphaDecay={0.02}
+        d3VelocityDecay={0.3}
+        dagMode="td"
+        dagLevelDistance={60}
       />
     </div>
   );
