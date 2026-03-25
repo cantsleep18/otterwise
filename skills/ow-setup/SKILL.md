@@ -106,8 +106,11 @@ Print inside a markdown code block. Print each section as checks complete.
 \___/ \__|\__\___|_|    \_/\_/ |_|___/\___|
 
 Setup & Diagnostics  v{version}
+Project: {CWD}
 ────────────────────────────────────────
 ```
+
+`{CWD}` is the user's current working directory (the project root). This makes it clear which project is being diagnosed.
 
 ### Example Output
 
