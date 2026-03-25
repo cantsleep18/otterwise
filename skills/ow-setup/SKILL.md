@@ -5,7 +5,19 @@ description: Setup, diagnose, and update Otterwise
 
 # /otterwise:ow-setup
 
-One command to install, diagnose, and update Otterwise. Run checks in order, report each as PASS / FAIL / WARN, print a summary table, and fix failures (with user confirmation).
+One command to install, diagnose, and update Otterwise. Run checks in order, report each result, and auto-fix failures.
+
+## Path Conventions
+
+Three directories matter. **Always use absolute paths** in all commands.
+
+| Name | Path | Purpose |
+|------|------|---------|
+| `{PLUGIN}` | `~/.claude/plugins/marketplaces/otterwise` | Git clone — where updates are pulled |
+| `{CACHE}` | `~/.claude/plugins/cache/otterwise` | Runtime cache — Claude Code runs skills/hooks from here |
+| `{PROJECT}` | User's current working directory (CWD) | Where `.otterwise/` research data lives |
+
+All git commands run inside `{PLUGIN}`. All research data lives inside `{PROJECT}/.otterwise/`. Skills and scripts execute from `{CACHE}`.
 
 ## Checks
 
@@ -16,74 +28,102 @@ One command to install, diagnose, and update Otterwise. Run checks in order, rep
 [ ] npx available       → which npx
 ```
 
-### 2. Configuration
+### 2. Plugin Configuration
+
+All paths below are relative to `{PLUGIN}`.
 
 ```
-[ ] plugin.json valid        → parse JSON, check skills/hooks paths exist
-[ ] hooks.json valid         → parse JSON, check referenced scripts exist
-[ ] Versions in sync         → compare plugin.json, marketplace.json (metadata + plugin)
-[ ] Skills registered        → verify each skills/*/SKILL.md has valid frontmatter
+[ ] plugin.json valid        → parse {PLUGIN}/.claude-plugin/plugin.json
+[ ] hooks.json valid         → parse {PLUGIN}/hooks/hooks.json, verify scripts exist
+[ ] Versions in sync         → compare plugin.json, marketplace.json versions
+[ ] Skills registered        → verify each {PLUGIN}/skills/*/SKILL.md has valid frontmatter
 ```
-
-Version check: read `.claude-plugin/plugin.json` `.version`, `.claude-plugin/marketplace.json` `.metadata.version` and `.plugins[0].version`. All must match. Auto-fix: ask user which is correct, write to all.
-
-Skills check: read `.claude-plugin/plugin.json` `.skills`, list subdirectories with SKILL.md, verify YAML frontmatter (name, description).
 
 ### 3. Auto-Update
 
+All git operations run inside `{PLUGIN}`.
+
 #### Pre-flight
 
+```bash
+cd {PLUGIN}
+git rev-parse --is-inside-work-tree
+git remote get-url origin   # must be github.com/cantsleep18/otterwise
+git status --porcelain       # check clean/dirty
 ```
-[ ] Git repo present       → git rev-parse --is-inside-work-tree
-[ ] Origin verified        → bash scripts/secure-update.sh pre-update
-[ ] Working tree status    → git status --porcelain (clean/dirty)
+
+If not a git repo or wrong remote, WARN and skip update.
+
+#### Fetch & Compare
+
+```bash
+cd {PLUGIN}
+git fetch origin main --quiet
+git rev-list HEAD..origin/main --count
 ```
 
-If not a git repo, skip update section. If security pre-check fails (wrong remote, diverged history), abort.
+If count > 0, updates are available. Show commit list and proceed automatically.
 
-#### Cache & Version Discovery
+#### Execute Update (automatic — no confirmation)
 
-Read `.otterwise/update-check.json` — if checked < 1 hour ago, use cached result. Otherwise:
+```bash
+cd {PLUGIN}
 
-1. `git fetch origin main --quiet` (WARN if offline)
-2. Compare local vs remote `.claude-plugin/plugin.json` version (semver)
-3. `git rev-list HEAD..origin/main --count`
-4. Write result to `.otterwise/update-check.json`
+# 1. Record rollback point
+PRE_UPDATE_SHA=$(git rev-parse HEAD)
+OLD_VERSION=$(cat .claude-plugin/plugin.json | grep version | head -1)
 
-#### Execute Update (automatic)
+# 2. Stash if dirty
+git stash push -m "ow-setup: auto-stash" (only if dirty)
 
-1. Record `PRE_UPDATE_SHA` and `OLD_VERSION` (from `.claude-plugin/plugin.json`)
-2. If dirty: `git stash push -m "ow-setup: auto-stash before update"`
-3. `git pull origin main --ff-only` (FAIL if diverged)
-4. `bash scripts/secure-update.sh post-update` (validates hooks, files, secrets)
-5. Read `NEW_VERSION` from `.claude-plugin/plugin.json`
-6. `bash scripts/migrate.sh` (schema migration for `.otterwise/` data files)
-7. Clear plugin cache: `rm -rf ~/.claude/plugins/cache/otterwise/`
-8. Pop stash if created
-9. Write updated `.otterwise/update-check.json`
+# 3. Pull
+git pull origin main --ff-only
 
-On failure: `git reset --hard $PRE_UPDATE_SHA`, pop stash, leave cache stale for re-check.
+# 4. Security post-check
+bash scripts/secure-update.sh post-update
 
-### 4. Post-Update Verification (conditional)
+# 5. Read new version
+NEW_VERSION=$(cat .claude-plugin/plugin.json | grep version | head -1)
 
-Only runs if an update was applied (step 3 above).
+# 6. Clear runtime cache so Claude Code reloads from {PLUGIN} on next session
+rm -rf ~/.claude/plugins/cache/otterwise/
 
-1. Re-run all diagnostic checks (Environment, Configuration) against the new version
-2. Verify `NEW_VERSION` > `OLD_VERSION` (semver)
-3. Report: `"Updated from {OLD_VERSION} to {NEW_VERSION}. Plugin cache cleared."`
-4. Tell user: **"Restart your Claude Code session to load the new version."**
+# 7. Run migration on PROJECT data (if .otterwise/ exists in CWD)
+if [ -d "{PROJECT}/.otterwise" ]; then
+  bash scripts/migrate.sh
+fi
 
-#### Plugin Cache
+# 8. Pop stash
+git stash pop (only if stashed)
+```
 
-Claude Code caches plugin files at `~/.claude/plugins/cache/otterwise/`. After `git pull` updates the source, this cache is stale. Step 7 above removes it so Claude Code reloads from source on next session start.
+On failure: `cd {PLUGIN} && git reset --hard $PRE_UPDATE_SHA`, pop stash.
 
-#### Migration
+### 4. Post-Update Verification
 
-If `.otterwise/` exists, `scripts/migrate.sh` handles schema migration for data files (`config.json`, `autopilot.json`, `autopilot-state.json`). Safety rules: additive only, preserve `nodes` array (append-only), backup first, skip if absent. Supports `--dry-run`.
+Only runs if an update was applied.
+
+1. Re-run Environment and Configuration checks
+2. Verify `NEW_VERSION` > `OLD_VERSION`
+3. Report: `Updated from {OLD_VERSION} to {NEW_VERSION}. Cache cleared.`
+4. **Tell user: "Restart your Claude Code session to load the new version."**
 
 ## Output Format
 
-Print inside a markdown code block. Print each section as checks complete.
+### Banner
+
+```
+ ___  _   _                      _
+/ _ \| |_| |_ ___ _ ____      _(_)___  ___
+| | | | __| __/ _ \ '__\ \ /\ / / / __|/ _ \
+| |_| | |_| ||  __/ |   \ V  V /| \__ \  __/
+\___/ \__|\__\___|_|    \_/\_/ |_|___/\___|
+
+Setup & Diagnostics  v{version}
+Project: {PROJECT}
+Plugin:  {PLUGIN}
+────────────────────────────────────────
+```
 
 ### Indicators
 
@@ -96,22 +136,6 @@ Print inside a markdown code block. Print each section as checks complete.
 | `DONE  ` | Action completed |
 | `SKIP  ` | Precondition not met |
 
-### Banner
-
-```
- ___  _   _                      _
-/ _ \| |_| |_ ___ _ ____      _(_)___  ___
-| | | | __| __/ _ \ '__\ \ /\ / / / __|/ _ \
-| |_| | |_| ||  __/ |   \ V  V /| \__ \  __/
-\___/ \__|\__\___|_|    \_/\_/ |_|___/\___|
-
-Setup & Diagnostics  v{version}
-Project: {CWD}
-────────────────────────────────────────
-```
-
-`{CWD}` is the user's current working directory (the project root). This makes it clear which project is being diagnosed.
-
 ### Example Output
 
 ```
@@ -119,58 +143,49 @@ Environment
   PASS  Node.js 22.1.0
   PASS  npx available
 
-Configuration
+Plugin Configuration
   PASS  plugin.json valid
-  PASS  hooks.json valid
-  PASS  All version files in sync (v1.2.0)
-  PASS  All skills registered (7 skills)
+  PASS  hooks.json valid (3 hooks, all scripts verified)
+  PASS  All version files in sync (v1.3.0)
+  PASS  All skills registered (8 skills)
 
 Updates
   PASS  Git repo clean
   PASS  Origin verified (github.com/cantsleep18/otterwise)
-  PASS  Up to date (v1.2.0)
+  PASS  Up to date (v1.3.0)
 
 ────────────────────────────────────────
-Summary: 8 PASS | 0 WARN | 0 FAIL
+Summary: 9 PASS | 0 WARN | 0 FAIL
 Status: Ready to use
 ```
 
-**Update available variant:**
+**Update available:**
 
 ```
 Updates
   PASS  Git repo clean
   PASS  Origin verified (github.com/cantsleep18/otterwise)
-  UPDATE  3 commits behind (v1.2.0 -> v1.3.0)
+  UPDATE  3 commits behind (v1.2.0 → v1.3.0)
     |- abc1234 Add new research capability
     |- def5678 Fix autopilot node selection
-```
-
-Then immediately proceed with the update — do NOT ask for confirmation.
-
-**After successful update:**
-
-```
   DONE  Pulled 3 commits (ff-only)
   DONE  Security post-check passed
-  DONE  Migration complete (no changes needed)
-  DONE  Plugin cache cleared (~/.claude/plugins/cache/otterwise/)
+  DONE  Migration complete
+  DONE  Cache cleared (~/.claude/plugins/cache/otterwise/)
   PASS  Re-verified: all checks pass on v1.3.0
 
 ────────────────────────────────────────
-Updated from v1.2.0 to v1.3.0. Plugin cache cleared.
+Updated from v1.2.0 to v1.3.0. Cache cleared.
 ⚠ Restart your Claude Code session to load the new version.
 ```
 
-**Auto-fix:** show FAIL then DONE on consecutive lines within the same section.
-
 ## Security
 
-The update mechanism uses `scripts/secure-update.sh` for hardening:
+The update mechanism uses `scripts/secure-update.sh`:
 
-- **Source verification**: remote origin must match canonical repo URL
-- **Integrity**: fast-forward only, no force pulls; pre-update backup with rollback SHA
-- **Hook safety**: hooks.json validated against whitelisted scripts; dangerous patterns rejected
-- **File scanning**: new files checked for scripts outside `scripts/`, credential-like names, binaries
-- **Secret detection**: config files scanned for API keys, tokens, private keys
-- **Rollback**: timestamped backups in `.otterwise/update-backup/` (last 5 retained)
+- **Source verification**: remote must match canonical repo URL
+- **Integrity**: fast-forward only, no force pulls
+- **Hook safety**: hooks.json validated against whitelisted scripts
+- **File scanning**: new files checked for dangerous patterns
+- **Secret detection**: config files scanned for API keys/tokens
+- **Rollback**: timestamped backups in `{PLUGIN}/.otterwise/update-backup/` (last 5 retained)
