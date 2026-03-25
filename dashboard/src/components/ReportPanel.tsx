@@ -5,9 +5,10 @@ import type { ResearchNode } from '../types';
 
 interface Props {
   node: ResearchNode | null;
+  onClose?: () => void;
 }
 
-export function ReportPanel({ node }: Props) {
+export function ReportPanel({ node, onClose }: Props) {
   const [reportContent, setReportContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +57,19 @@ export function ReportPanel({ node }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center border-b border-neutral-900 bg-black flex-shrink-0 px-4 py-2">
-        <span className="text-xs font-medium text-neutral-200">{node.name}</span>
-        {node.parentIds.length > 0 && (
-          <span className="ml-2 text-xs text-neutral-600">
-            {node.parentIds.length === 1 ? '1 parent' : `${node.parentIds.length} parents`}
-          </span>
+      <div className="flex items-center justify-between border-b border-neutral-900 bg-black flex-shrink-0 px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-medium text-neutral-200 truncate">{node.name}</span>
+          {node.parentIds.length > 0 && (
+            <span className="text-xs text-neutral-600 flex-shrink-0">
+              {node.parentIds.length === 1 ? '1 parent' : `${node.parentIds.length} parents`}
+            </span>
+          )}
+        </div>
+        {onClose && (
+          <button onClick={onClose} className="text-neutral-600 hover:text-neutral-400 text-xs flex-shrink-0 ml-2">
+            ESC
+          </button>
         )}
       </div>
 

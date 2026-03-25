@@ -73,22 +73,21 @@ export default function App() {
         />
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Graph area */}
-        <div className="flex-1 min-h-0">
-          <ResearchGraph
-            graphData={graphData}
-            selectedNode={selectedNode}
-            onSelectNode={setSelectedNode}
-          />
-        </div>
+      {/* Graph */}
+      <div className="flex-1 min-w-0">
+        <ResearchGraph
+          graphData={graphData}
+          selectedNode={selectedNode}
+          onSelectNode={setSelectedNode}
+        />
+      </div>
 
-        {/* Detail panel */}
-        <div className="h-[300px] flex-shrink-0 border-t border-neutral-900 bg-black">
-          <ReportPanel node={selectedNode} />
-        </div>
-      </main>
+      {/* Report panel — right side, full height */}
+      {selectedNode && (
+        <aside className="w-[420px] flex-shrink-0 border-l border-neutral-900 bg-black overflow-hidden">
+          <ReportPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+        </aside>
+      )}
     </div>
   );
 }
