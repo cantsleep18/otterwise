@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchReports } from '@/lib/parse-reports';
 import type { GraphData, ResearchNode, AutopilotStatus } from './types';
 import Sidebar from './components/Sidebar';
@@ -7,6 +7,14 @@ import { ReportPanel } from './components/ReportPanel';
 
 
 const POLL_INTERVAL = 5000;
+
+function graphDataEqual(a: GraphData, b: GraphData): boolean {
+  if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false;
+  for (let i = 0; i < a.nodes.length; i++) {
+    if (a.nodes[i].id !== b.nodes[i].id || a.nodes[i].status !== b.nodes[i].status) return false;
+  }
+  return true;
+}
 
 const STATUS_DISPLAY: Record<AutopilotStatus['status'], { label: string; color: string }> = {
   running: { label: 'Running', color: 'bg-blue-500' },
@@ -18,11 +26,16 @@ export default function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [selectedNode, setSelectedNode] = useState<ResearchNode | null>(null);
   const [autopilotStatus, setAutopilotStatus] = useState<AutopilotStatus | null>(null);
+  const graphDataRef = useRef(graphData);
 
   const fetchData = useCallback(async () => {
     try {
       const data = await fetchReports();
-      setGraphData(data);
+      // Only update if data actually changed (prevents simulation restart)
+      if (!graphDataEqual(graphDataRef.current, data)) {
+        graphDataRef.current = data;
+        setGraphData(data);
+      }
     } catch {
       // API not available yet, keep current data
     }
@@ -74,7 +87,7 @@ export default function App() {
       </aside>
 
       {/* Graph */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-hidden">
         <ResearchGraph
           graphData={graphData}
           selectedNode={selectedNode}

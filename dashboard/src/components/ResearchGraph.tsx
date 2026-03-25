@@ -21,7 +21,21 @@ const HIT_R = 16;
 
 export default function ResearchGraph({ graphData, selectedNode, onSelectNode }: Props) {
   const fgRef = useRef<ForceGraphMethods>();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  // Track container size with ResizeObserver
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) setDimensions({ width, height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const forceData = useMemo(() => {
     const nodes = graphData.nodes.map((n) => ({ ...n }));
@@ -119,10 +133,12 @@ export default function ResearchGraph({ graphData, selectedNode, onSelectNode }:
   );
 
   return (
-    <div className="w-full h-full" style={{ cursor: hoveredId ? 'pointer' : 'default' }}>
+    <div ref={containerRef} className="w-full h-full overflow-hidden" style={{ cursor: hoveredId ? 'pointer' : 'default' }}>
       <ForceGraph2D
         ref={fgRef}
         graphData={forceData}
+        width={dimensions.width}
+        height={dimensions.height}
         backgroundColor="#000000"
         nodeCanvasObject={paintNode}
         nodeCanvasObjectMode={() => 'replace'}
