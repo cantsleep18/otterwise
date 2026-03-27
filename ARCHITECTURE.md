@@ -4,7 +4,7 @@ Autonomous compound research platform for Claude Code marketplace.
 
 ## Overview
 
-Otterwise is a plugin that spawns agent teams to conduct autonomous research on datasets. It runs as a Claude Code extension with support for seamless auto-updates through git-based versioning.
+Otterwise is a plugin that spawns agent teams to conduct autonomous investment research. It runs as a Claude Code extension with support for seamless auto-updates through git-based versioning. The core loop is OLJC (Observe, Look, Judge, Crystallize) — an infinite cycle that discovers market phenomena, verifies them against price data, and crystallizes findings into strategy documents.
 
 ## Directory Structure
 
@@ -17,21 +17,21 @@ otterwise/
 │   ├── research/                # Start new research session
 │   ├── continue/                # Expand existing session
 │   ├── status/                  # Show session state
-│   ├── autopilot/               # Run autonomous research
+│   ├── autopilot/               # Run autonomous OLJC loop
 │   ├── autopilot-pause/         # Pause/resume autopilot
 │   ├── autopilot-abort/         # Stop autopilot
-│   ├── ow-setup/                # Setup, diagnose, update plugin
-│   └── dashboard/               # Launch visualization dashboard
+│   └── ow-setup/                # Setup, diagnose, update plugin
 ├── hooks/                       # Event handlers
 │   └── hooks.json               # PostToolUse validation hooks
 ├── scripts/                     # Utilities (called from ow-setup)
 │   ├── secure-update.sh         # Security checks for updates
 │   ├── migrate.sh               # Schema migration for user data
+│   ├── migrate-to-investment.sh # Migration to investment mode
 │   ├── version-sync.sh          # Version consistency checker
 │   ├── check-version-sync.sh    # CI script to verify versions
-│   ├── validate-summary.sh      # Hook: validate task summaries
-│   └── validate-autopilot-state.sh  # Hook: validate autopilot state
-├── dashboard/                   # Research graph visualization UI
+│   ├── validate-strategy.sh        # Hook: validate strategy .md format
+│   ├── warn-strategy-evidence.sh   # Hook: warn on missing data evidence
+│   └── validate-autopilot-state.sh # Hook: validate autopilot state
 ├── tests/                       # Integration tests
 ├── settings.json                # Tool permissions (empty, no MCP tools)
 ├── .mcp.json                    # MCP server config (empty, REPL removed)
@@ -65,7 +65,6 @@ Claude Code:
 ├── skills/
 ├── hooks/
 ├── scripts/
-├── dashboard/
 └── ...
 ```
 
@@ -76,8 +75,41 @@ Claude Code:
     ├── config.json             # Research session graph config
     ├── autopilot.json          # Autopilot session state
     ├── autopilot-state.json    # Control signal (pause/abort/play)
-    └── update-check.json       # Cached version info (1-hour TTL)
+    ├── update-check.json       # Cached version info (1-hour TTL)
+    └── strategies/             # OLJC output — Obsidian-compatible .md files
+        ├── {name}.md           # Strategy documents (graph nodes)
+        ├── look/               # LOOK phase case records
+        └── research-log/       # Research process logs
 ```
+
+## OLJC Loop
+
+Autopilot runs an infinite OLJC cycle. Each iteration spawns agent teams via the Teams API:
+
+```
+OBSERVE → LOOK → JUDGE → CRYSTALLIZE → ROUTE → OBSERVE ...
+                                          ↑
+                                 autopilot-state.json (pause/abort)
+```
+
+| Phase | What happens | Teams API |
+|-------|-------------|-----------|
+| OBSERVE | Read data, discover interesting phenomena | 1 researcher |
+| LOOK | Find historical cases, verify against price data | K researchers (parallel) |
+| JUDGE | Team lead decides WRITE or SKIP — no agent spawn | None |
+| CRYSTALLIZE | Write strategy document (.md) from observations | 1 researcher |
+| ROUTE | Adaptive router picks next research mode and expansion type | None |
+
+Output: `.otterwise/strategies/{name}.md` — Obsidian-compatible files with wikilinks, tags, and Dataview frontmatter. Each strategy is a graph node; `[[wikilinks]]` form edges.
+
+### Strategy Types
+
+| Type | Description |
+|------|-------------|
+| `seed` | New observation, independent strategy |
+| `derive` | Variation of an existing strategy |
+| `explore` | Inspired by existing findings, different domain |
+| `combine` | Merges insights from multiple strategies |
 
 ## Plugin Lifecycle
 
@@ -94,8 +126,8 @@ Claude Code:
 
 ```json
 {
-  "matcher": "TaskUpdate",
-  "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-summary.sh $TOOL_INPUT"
+  "matcher": "Write",
+  "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-strategy.sh"
 }
 ```
 
@@ -190,7 +222,7 @@ Schema v2:
   "pluginVersion": "1.3.0",
   "sessionId": "...",
   "nodes": [
-    { "id": "node1", "type": "dataset", "title": "...", ... }
+    { "id": "node1", "type": "seed", "title": "...", ... }
   ],
   "edges": [ ... ]
 }
@@ -198,6 +230,7 @@ Schema v2:
 
 - Additive schema: new fields added, old preserved
 - `nodes` array is append-only: never delete nodes, only add
+- Node types: `seed`, `derive`, `explore`, `combine` (strategy expansion types)
 - `schemaVersion` incremented when structure changes
 - `pluginVersion` records which plugin version created/updated the file
 
@@ -247,8 +280,9 @@ Prevents force pulls and history rewrites.
 ### Hook Safety: Whitelist
 
 Hooks allowed to reference only:
-- `scripts/validate-summary.sh`
 - `scripts/validate-autopilot-state.sh`
+- `scripts/validate-strategy.sh`
+- `scripts/warn-strategy-evidence.sh`
 
 Any other command patterns rejected (curl, eval, bash -c, etc.).
 
@@ -412,6 +446,6 @@ Tests validate:
 ## Future Improvements
 
 - Marketplace auto-update without manual git clone (once marketplace plugin updates work)
-- Compressed plugin size (remove node_modules from cache)
+- Strategy lifecycle management (draft → developing → established → archived)
 - Incremental sync (download only changed files, not entire version)
 - User preference for update timing (auto, manual, ask)

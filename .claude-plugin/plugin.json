@@ -1,6 +1,6 @@
 {
   "name": "otterwise",
-  "description": "Autonomous compound research platform — spawns agent teams to analyze datasets with a graph of discoveries",
+  "description": "Autonomous compound research platform — spawns agent teams to discover investment strategies through data-driven observation",
   "version": "1.3.0",
   "author": {
     "name": "cantsleep18"
@@ -13,6 +13,7 @@
     "data-science",
     "multi-agent",
     "analysis",
-    "visualization"
+    "investment",
+    "strategy"
   ]
 }

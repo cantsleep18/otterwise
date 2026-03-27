@@ -153,7 +153,6 @@ merge_hooks() {
 
   # Canonical hooks — matchers that must exist under PostToolUse
   local -A CANONICAL_MATCHERS
-  CANONICAL_MATCHERS["TaskUpdate"]='bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-summary.sh $TOOL_INPUT'
   CANONICAL_MATCHERS["Write"]='bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-autopilot-state.sh'
 
   local CURRENT_MATCHERS
@@ -253,7 +252,7 @@ validate_cache() {
   fi
 
   # Expected schema version for current plugin
-  local EXPECTED_SCHEMA=2
+  local EXPECTED_SCHEMA=3
 
   # Migrate each user data file
   # config.json = research session config
@@ -318,6 +317,64 @@ validate_cache() {
             "$filepath" > "${filepath}.tmp" 2>/dev/null
           if [ $? -eq 0 ] && jq empty "${filepath}.tmp" 2>/dev/null; then
             mv "${filepath}.tmp" "$filepath"
+          else
+            rm -f "${filepath}.tmp"
+            MIGRATE_OK=false
+            break
+          fi
+          ;;
+        config.json:v2:v3|autopilot-state.json:v2:v3)
+          # v2 → v3: bump schemaVersion only (no structural changes)
+          jq --arg pv "$PLUGIN_VERSION" \
+            '. + {"schemaVersion": 3, "pluginVersion": $pv}' \
+            "$filepath" > "${filepath}.tmp" 2>/dev/null
+          if [ $? -eq 0 ] && jq empty "${filepath}.tmp" 2>/dev/null; then
+            mv "${filepath}.tmp" "$filepath"
+          else
+            rm -f "${filepath}.tmp"
+            MIGRATE_OK=false
+            break
+          fi
+          ;;
+        autopilot.json:v2:v3)
+          # v2 → v3: nodes[] → strategies[], add modeStats{}, lastModes[]
+          # Each node becomes a strategy entry with researchMode defaulting to "brute_force"
+          jq --arg pv "$PLUGIN_VERSION" '
+            # Convert nodes[] to strategies[]
+            .strategies = [(.nodes // [])[] | {
+              id: .id,
+              name: .name,
+              type: "seed",
+              status: (if .status == "completed" then "draft" else .status end),
+              phenomenon: "",
+              researchMode: "brute_force"
+            }] |
+            # Initialize modeStats with zero counters for all 10 modes
+            .modeStats = {
+              "brute_force":       {"total": 0, "successful": 0},
+              "news_replay":       {"total": 0, "successful": 0},
+              "condition_combo":   {"total": 0, "successful": 0},
+              "anomaly_detection": {"total": 0, "successful": 0},
+              "copycat":           {"total": 0, "successful": 0},
+              "narrative_shift":   {"total": 0, "successful": 0},
+              "consensus_gap":     {"total": 0, "successful": 0},
+              "supply_chain":      {"total": 0, "successful": 0},
+              "regulatory":        {"total": 0, "successful": 0},
+              "behavioral":        {"total": 0, "successful": 0}
+            } |
+            # Backfill modeStats from migrated strategies (all counted as brute_force)
+            .modeStats.brute_force.total = (.strategies | length) |
+            .modeStats.brute_force.successful = (.strategies | length) |
+            # Initialize lastModes as empty (no historical mode tracking)
+            .lastModes = [] |
+            # Remove old nodes array and deprecated fields
+            del(.nodes) | del(.maxRounds) | del(.maxNodes) |
+            # Bump schema
+            . + {"schemaVersion": 3, "pluginVersion": $pv}
+          ' "$filepath" > "${filepath}.tmp" 2>/dev/null
+          if [ $? -eq 0 ] && jq empty "${filepath}.tmp" 2>/dev/null; then
+            mv "${filepath}.tmp" "$filepath"
+            info "  Converted nodes[] → strategies[], added modeStats/lastModes"
           else
             rm -f "${filepath}.tmp"
             MIGRATE_OK=false
@@ -516,9 +573,151 @@ migrate_v120_to_v130() {
   fi
 }
 
+# --- 5b. Version migration: 1.3.0 → 1.4.0 ----------------------------------
+#
+# Handles the graph-node → strategy-node redesign (OLJC loop):
+#   - nodes/ directories → strategies/ structure
+#   - node report.md files → strategy .md files with updated frontmatter
+#   - autopilot.json nodes[] → strategies[] (handled by schema v2→v3 in validate_cache)
+
+migrate_v130_to_v140() {
+  heading "Version Migration (1.3.0 → 1.4.0)"
+
+  local CACHE_DIR="$PLUGIN_ROOT/.otterwise"
+  if [ ! -d "$CACHE_DIR" ]; then
+    info "No .otterwise/ directory — skipping version migration"
+    return
+  fi
+
+  need jq || return
+
+  # 5b-a. Rename nodes/ directory to strategies/
+  local NODES_DIR="$CACHE_DIR/nodes"
+  local STRAT_DIR="$CACHE_DIR/strategies"
+  if [ -d "$NODES_DIR" ]; then
+    info "Found legacy nodes/ directory — migrating to strategies/"
+    if [ "$DRY_RUN" = false ]; then
+      if [ -d "$STRAT_DIR" ]; then
+        warn "strategies/ already exists — merging nodes/ contents into it"
+      else
+        mkdir -p "$STRAT_DIR"
+      fi
+
+      # Move each node directory's report.md to strategies/{name}.md
+      for node_dir in "$NODES_DIR"/*/; do
+        [ -d "$node_dir" ] || continue
+        local node_name
+        node_name=$(basename "$node_dir")
+        local report="$node_dir/report.md"
+
+        if [ -f "$report" ]; then
+          # Extract name from frontmatter if available, else use dir name
+          local strat_name
+          strat_name=$(sed -n '/^---$/,/^---$/{ /^name:/{ s/^name: *//; s/^"//; s/"$//; p; q; } }' "$report" 2>/dev/null)
+          if [ -z "$strat_name" ]; then
+            strat_name="$node_name"
+          fi
+          local target="$STRAT_DIR/${strat_name}.md"
+          if [ -f "$target" ]; then
+            warn "Strategy file already exists, skipping: ${strat_name}.md"
+          else
+            cp "$report" "$target"
+            info "  Migrated nodes/$node_name/report.md → strategies/${strat_name}.md"
+          fi
+        fi
+      done
+
+      # Create look/ and research-log/ subdirectories
+      mkdir -p "$STRAT_DIR/look"
+      mkdir -p "$STRAT_DIR/research-log"
+
+      # Remove old nodes/ directory after migration
+      rm -rf "$NODES_DIR"
+      ok "Migrated nodes/ → strategies/"
+      changed
+    else
+      info "(dry-run) Would migrate nodes/ to strategies/"
+    fi
+  else
+    ok "No legacy nodes/ directory found"
+  fi
+
+  # 5b-b. Migrate autopilot.json: nodes[] → strategies[], add modeStats{}, lastModes[]
+  local AP_FILE="$CACHE_DIR/autopilot.json"
+  if [ -f "$AP_FILE" ] && jq empty "$AP_FILE" 2>/dev/null; then
+    local AP_CHANGED=false
+
+    # Convert nodes[] → strategies[]
+    if jq -e '.nodes' "$AP_FILE" >/dev/null 2>&1; then
+      info "Converting autopilot.json nodes[] → strategies[]"
+      if [ "$DRY_RUN" = false ]; then
+        jq '
+          .strategies = [.nodes[] | {
+            id: .id,
+            name: (.name // .id),
+            type: (if (.parentIds // []) | length == 0 then "seed"
+                   elif (.parentIds // []) | length > 1 then "combine"
+                   else "derive" end),
+            status: (if .status == "completed" then "established"
+                     elif .status == "running" then "developing"
+                     else "draft" end),
+            phenomenon: "migrated from v1.3.0 node",
+            researchMode: "brute_force"
+          }] | del(.nodes)
+        ' "$AP_FILE" > "${AP_FILE}.tmp" 2>/dev/null
+        if [ $? -eq 0 ] && jq empty "${AP_FILE}.tmp" 2>/dev/null; then
+          mv "${AP_FILE}.tmp" "$AP_FILE"
+          AP_CHANGED=true
+        else
+          rm -f "${AP_FILE}.tmp"
+          warn "Failed to convert nodes[] → strategies[]"
+        fi
+      fi
+    elif jq -e '.strategies' "$AP_FILE" >/dev/null 2>&1; then
+      ok "autopilot.json already has strategies[]"
+    fi
+
+    # Add modeStats{} if missing
+    if ! jq -e '.modeStats' "$AP_FILE" >/dev/null 2>&1; then
+      if [ "$DRY_RUN" = false ]; then
+        jq '. + {"modeStats": {
+          "brute_force": {"total": 0, "successful": 0},
+          "news_replay": {"total": 0, "successful": 0},
+          "condition_combo": {"total": 0, "successful": 0},
+          "anomaly_detection": {"total": 0, "successful": 0},
+          "copycat": {"total": 0, "successful": 0},
+          "narrative_shift": {"total": 0, "successful": 0},
+          "consensus_gap": {"total": 0, "successful": 0},
+          "supply_chain": {"total": 0, "successful": 0},
+          "regulatory": {"total": 0, "successful": 0},
+          "behavioral": {"total": 0, "successful": 0}
+        }}' "$AP_FILE" > "${AP_FILE}.tmp"
+        mv "${AP_FILE}.tmp" "$AP_FILE"
+        AP_CHANGED=true
+        info "  Added modeStats{}"
+      fi
+    fi
+
+    # Add lastModes[] if missing
+    if ! jq -e '.lastModes' "$AP_FILE" >/dev/null 2>&1; then
+      if [ "$DRY_RUN" = false ]; then
+        jq '. + {"lastModes": []}' "$AP_FILE" > "${AP_FILE}.tmp"
+        mv "${AP_FILE}.tmp" "$AP_FILE"
+        AP_CHANGED=true
+        info "  Added lastModes[]"
+      fi
+    fi
+
+    if [ "$AP_CHANGED" = true ]; then
+      ok "autopilot.json migrated to v1.4.0 schema"
+      changed
+    fi
+  fi
+}
+
 # --- 6. Clean up design docs from .otterwise/ ------------------------------
 #
-# .otterwise/ should only contain research data (config, state, nodes/).
+# .otterwise/ should only contain research data (config, state, strategies/).
 # Design docs and planning files are not research artifacts.
 
 cleanup_design_docs() {
@@ -609,6 +808,7 @@ main() {
   merge_hooks
   merge_mcp
   migrate_v120_to_v130
+  migrate_v130_to_v140
   validate_cache
   cleanup_design_docs
   validate_plugin

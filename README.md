@@ -3,9 +3,9 @@
   <code>&nbsp;otterwise&nbsp;</code>
   <br />
   <br />
-  <strong>Autonomous compound research for Claude Code</strong>
+  <strong>Autonomous investment research that never sleeps.</strong>
   <br />
-  <sub>spawn agent teams &middot; build discovery graphs &middot; visualize in real-time</sub>
+  <sub>A Claude Code plugin that reads your data, discovers patterns, and writes strategy memos — on repeat, forever.</sub>
   <br />
   <br />
   <a href="#install"><img src="https://img.shields.io/badge/install-one_command-000?style=flat-square" /></a>
@@ -17,141 +17,67 @@
 
 ## What it does
 
-Give it a dataset. It spawns parallel research teams, builds a **DAG of discoveries**, and keeps expanding until you stop it.
-
-```
-dataset.csv ──> /otterwise:autopilot
-                     │
-                     ├── Node 0  seed profiling
-                     │     ├── Node 1  value screening
-                     │     │     └── Node 3  cross-branch synthesis
-                     │     ├── Node 2  sector analysis
-                     │     └── Node 4  healthcare deep-dive
-                     │           └── Node 5  final portfolio ◄── combines 1,2,3,4
-                     │
-                     └── ... (infinite expansion until abort)
-```
-
-Each node = a team of agents. Each agent writes findings. The lead synthesizes into `report.md`. Nodes link via `parentIds` forming a research graph.
+Point it at a dataset and a goal. It runs an observation loop — reading data, noticing phenomena, checking price behavior, writing narrative strategy files. Each cycle produces an analyst-grade memo grounded in real data. It doesn't stop until you tell it to.
 
 ---
 
 ## Install
 
 ```bash
-/plugin marketplace add cantsleep18/otterwise
-/plugin install otterwise@cantsleep18-otterwise
+claude extension add cantsleep18/otterwise
 ```
 
-Then verify:
-```bash
-/otterwise:ow-setup
-```
+Verify with `/otterwise:ow-setup`.
 
 ---
 
-## Commands
-
-| Command | What it does |
-|---------|-------------|
-| `/otterwise:research` | One-shot research on a dataset |
-| `/otterwise:continue` | Expand the graph into new directions |
-| `/otterwise:autopilot` | Infinite autonomous expansion loop |
-| `/otterwise:autopilot-pause` | Pause / resume autopilot |
-| `/otterwise:autopilot-abort` | Stop the loop |
-| `/otterwise:status` | Print the research DAG |
-| `/otterwise:dashboard` | Launch graph visualization at `localhost:5173` |
-| `/otterwise:ow-setup` | Diagnose + auto-update |
-
----
-
-## Autopilot
+## Quick start
 
 ```bash
 /otterwise:autopilot /path/to/data.csv "Find undervalued stocks"
 ```
 
-Runs an **infinite EVALUATE → EXPAND loop**:
+Walk away. Come back to a vault of strategy documents.
 
-1. **EVALUATE** — reads all nodes, picks the most promising direction
-2. **EXPAND** — spawns 3 researcher agents in parallel, synthesizes findings
-3. **Repeat** — forever, until you run `/otterwise:autopilot-abort`
-
-Features:
-- 30-minute timeout per node (continues with partial results)
-- Circuit breaker (skips nodes that fail 3x)
-- Pause/resume without losing state
-- Data-driven: agents must cite sources via WebSearch/WebFetch
+Pause anytime with `/otterwise:autopilot-pause`. Stop with `/otterwise:autopilot-abort`.
 
 ---
 
-## Dashboard
+## The OLJC loop
 
-```bash
-/otterwise:dashboard
-```
-
-Opens `http://localhost:5173` — a dark-themed force graph visualization.
-
-- Nodes = research discoveries (blue dots)
-- Edges = parent-child relationships
-- Click a node → full report renders on the right
-- 5-second auto-refresh (watches `.otterwise/nodes/`)
-
----
-
-## How research data is stored
+Each autopilot cycle runs four phases:
 
 ```
-.otterwise/
-├── config.json                          # dataset + goals
-├── autopilot.json                       # DAG metadata
-├── autopilot-state.json                 # running / pause / abort
-└── nodes/
-    ├── 20260325_143015_a1b2c3d4_시드프로파일링/
-    │   ├── report.md                    # synthesized findings (YAML frontmatter)
-    │   ├── researcher-1/summary.md
-    │   ├── researcher-2/summary.md
-    │   └── researcher-3/summary.md
-    └── 20260325_150421_c3d4e5f6_딥다이브/
-        ├── report.md
-        └── ...
+OBSERVE    read data, notice something interesting
+LOOK       find past cases, check actual price moves
+JUDGE      worth writing up? yes or skip
+CRYSTALLIZE   distill into a strategy memo
 ```
 
-`report.md` frontmatter defines the graph:
+Then the **router** picks a new direction and the loop restarts. Ten research modes keep exploration diverse — brute force screening, news replay, anomaly detection, narrative shifts, and more.
 
-```yaml
----
-id: "20260325_143015_a1b2c3d4_시드프로파일링"
-name: "시드-프로파일링"
-parentIds: []
-status: "completed"
-findings_count: 12
----
-```
+Output is Obsidian-native markdown. Open `.otterwise/strategies/` as a vault and get a knowledge graph for free.
 
 ---
 
-## Auto-update
+## Commands
 
-```bash
-/otterwise:ow-setup
-```
-
-Detects new versions → pulls → clears cache → migrates data → done.
-
-- Fast-forward only (no force pulls)
-- Pre/post security checks
-- Research data never touched
-- Rolls back on failure
+| Command | |
+|---------|---|
+| `/otterwise:autopilot` | Infinite autonomous research loop |
+| `/otterwise:autopilot-pause` | Pause / resume |
+| `/otterwise:autopilot-abort` | Stop the loop |
+| `/otterwise:research` | One-shot research run |
+| `/otterwise:continue` | Expand the graph manually |
+| `/otterwise:status` | Print current strategy graph |
+| `/otterwise:ow-setup` | Diagnose + auto-update |
 
 ---
 
-## Requirements
+## Details
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- Node.js 20+
+See [PLAN.md](PLAN.md) for the full architecture, routing logic, and strategy format spec.
 
-## License
+---
 
 MIT
