@@ -76,10 +76,13 @@ Claude Code:
     ├── autopilot.json          # Autopilot session state
     ├── autopilot-state.json    # Control signal (pause/abort/play)
     ├── update-check.json       # Cached version info (1-hour TTL)
-    └── strategies/             # OLJC output — Obsidian-compatible .md files
-        ├── {name}.md           # Strategy documents (graph nodes)
-        ├── look/               # LOOK phase case records
-        └── research-log/       # Research process logs
+    ├── strategies/             # OLJC output — Obsidian vault (.md files with wikilinks)
+    │   └── {YYYYMMDD_HHMM}_{8hex}_{name}.md  # Strategy documents (graph nodes)
+    └── artifacts/              # Per-cycle intermediate outputs
+        └── {id}_{name}/        # One folder per OLJC cycle
+            ├── 01_discovery.md   # OBSERVE phase findings
+            ├── 02_evidence.md    # LOOK phase case records
+            └── 03_evaluation.md  # JUDGE phase decision (WRITE or SKIP)
 ```
 
 ## OLJC Loop
@@ -100,7 +103,7 @@ OBSERVE → LOOK → JUDGE → CRYSTALLIZE → ROUTE → OBSERVE ...
 | CRYSTALLIZE | Write strategy document (.md) from observations | 1 researcher |
 | ROUTE | Adaptive router picks next research mode and expansion type | None |
 
-Output: `.otterwise/strategies/{name}.md` — Obsidian-compatible files with wikilinks, tags, and Dataview frontmatter. Each strategy is a graph node; `[[wikilinks]]` form edges.
+Output: `.otterwise/strategies/{YYYYMMDD_HHMM}_{8hex}_{name}.md` — Obsidian-compatible files with wikilinks, tags, and Dataview frontmatter. Each strategy is a graph node; `[[wikilinks]]` form edges. Per-cycle intermediate outputs go to `.otterwise/artifacts/{id}_{name}/` with numbered phase prefixes.
 
 ### Strategy Types
 

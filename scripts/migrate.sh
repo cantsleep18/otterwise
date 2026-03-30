@@ -648,10 +648,6 @@ migrate_v130_to_v140() {
         fi
       done
 
-      # Create look/ and research-log/ subdirectories
-      mkdir -p "$STRAT_DIR/look"
-      mkdir -p "$STRAT_DIR/research-log"
-
       # Remove old nodes/ directory after migration
       rm -rf "$NODES_DIR"
       ok "Migrated nodes/ → strategies/"
@@ -731,6 +727,200 @@ migrate_v130_to_v140() {
 
     if [ "$AP_CHANGED" = true ]; then
       ok "autopilot.json migrated to v1.4.0 schema"
+      changed
+    fi
+  fi
+}
+
+# --- 5c. Artifact structure migration: flat dirs → per-cycle folders --------
+#
+# Migrates old flat artifact layout to per-cycle folders:
+#   Old layout A: strategies/look/, strategies/research-log/, strategies/discarded/
+#   Old layout B: artifacts/look/, artifacts/research-log/, artifacts/discarded/
+#   New layout:   artifacts/{id}_{name}/ with 01_discovery.md, 02_evidence.md, 03_evaluation.md
+#
+# For each strategy file, finds matching artifacts by name, creates a per-cycle
+# folder, moves+renames files, and renames the strategy file with id prefix.
+
+migrate_artifacts_to_per_cycle() {
+  heading "Artifact Structure Migration (flat → per-cycle)"
+
+  local CACHE_DIR="$PLUGIN_ROOT/.otterwise"
+  if [ ! -d "$CACHE_DIR" ]; then
+    info "No .otterwise/ directory — skipping artifact migration"
+    return
+  fi
+
+  local STRAT_DIR="$CACHE_DIR/strategies"
+  local ART_DIR="$CACHE_DIR/artifacts"
+
+  # Detect which old layout exists
+  local LAYOUT=""
+  if [ -d "$STRAT_DIR/look" ] || [ -d "$STRAT_DIR/research-log" ]; then
+    LAYOUT="A"  # strategies/look/, strategies/research-log/
+  elif [ -d "$ART_DIR/look" ] || [ -d "$ART_DIR/research-log" ]; then
+    LAYOUT="B"  # artifacts/look/, artifacts/research-log/
+  fi
+
+  if [ -z "$LAYOUT" ]; then
+    ok "No legacy flat artifact directories found"
+    return
+  fi
+
+  info "Detected layout $LAYOUT — migrating to per-cycle artifact folders"
+
+  # Determine source base directory for artifacts
+  local SRC_BASE
+  if [ "$LAYOUT" = "A" ]; then
+    SRC_BASE="$STRAT_DIR"
+  else
+    SRC_BASE="$ART_DIR"
+  fi
+
+  if [ ! -d "$STRAT_DIR" ]; then
+    info "No strategies/ directory — skipping"
+    return
+  fi
+
+  # Backup before migration
+  local BACKUP_DIR="$CACHE_DIR/migration-backup-artifacts"
+  if [ ! -d "$BACKUP_DIR" ] && [ "$DRY_RUN" = false ]; then
+    mkdir -p "$BACKUP_DIR"
+    # Backup strategy files
+    for f in "$STRAT_DIR"/*.md; do
+      [ -f "$f" ] || continue
+      cp "$f" "$BACKUP_DIR/"
+    done
+    # Backup artifact source dirs
+    for subdir in look research-log discarded; do
+      if [ -d "$SRC_BASE/$subdir" ]; then
+        cp -r "$SRC_BASE/$subdir" "$BACKUP_DIR/$subdir"
+      fi
+    done
+    info "Backup created at .otterwise/migration-backup-artifacts/"
+    changed
+  fi
+
+  mkdir -p "$ART_DIR"
+
+  local MIGRATED=0
+
+  # Process each strategy file
+  for strat_file in "$STRAT_DIR"/*.md; do
+    [ -f "$strat_file" ] || continue
+    local basename_md
+    basename_md=$(basename "$strat_file")
+    local name="${basename_md%.md}"
+
+    # Skip if filename already has id prefix (already migrated)
+    if echo "$name" | grep -qE '^[0-9]{8}_[0-9]{4}_[0-9a-f]{8}_'; then
+      continue
+    fi
+
+    # Read id from frontmatter
+    local STRAT_ID
+    STRAT_ID=$(sed -n '/^---$/,/^---$/{ /^id:/{ s/^id:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}/\1/; p; q; } }' "$strat_file" 2>/dev/null)
+
+    if [ -z "$STRAT_ID" ]; then
+      warn "No id in frontmatter of $basename_md — skipping"
+      continue
+    fi
+
+    # Create per-cycle artifact folder
+    local CYCLE_DIR="$ART_DIR/${STRAT_ID}_${name}"
+
+    if [ -d "$CYCLE_DIR" ]; then
+      # Already has a per-cycle folder, skip
+      continue
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+      info "(dry-run) Would create $CYCLE_DIR and move artifacts for $name"
+      MIGRATED=$((MIGRATED + 1))
+      continue
+    fi
+
+    mkdir -p "$CYCLE_DIR"
+    local FILES_MOVED=0
+
+    # Move observe file → 01_discovery.md
+    local observe_file="$SRC_BASE/research-log/${name}-observe.md"
+    if [ -f "$observe_file" ]; then
+      mv "$observe_file" "$CYCLE_DIR/01_discovery.md"
+      FILES_MOVED=$((FILES_MOVED + 1))
+    fi
+
+    # Move look synthesis → 02_evidence.md
+    local look_file="$SRC_BASE/look/${name}.md"
+    if [ -f "$look_file" ]; then
+      mv "$look_file" "$CYCLE_DIR/02_evidence.md"
+      FILES_MOVED=$((FILES_MOVED + 1))
+    fi
+
+    # Move look subset files → 02_evidence_{subset}.md
+    for subset_file in "$SRC_BASE/look/${name}-"*.md; do
+      [ -f "$subset_file" ] || continue
+      local subset_basename
+      subset_basename=$(basename "$subset_file")
+      # Extract subset: {name}-{subset}.md → {subset}
+      local subset="${subset_basename#${name}-}"
+      subset="${subset%.md}"
+      mv "$subset_file" "$CYCLE_DIR/02_evidence_${subset}.md"
+      FILES_MOVED=$((FILES_MOVED + 1))
+    done
+
+    # Move judge file → 03_evaluation.md
+    local judge_file="$SRC_BASE/research-log/${name}-judge.md"
+    if [ -f "$judge_file" ]; then
+      mv "$judge_file" "$CYCLE_DIR/03_evaluation.md"
+      FILES_MOVED=$((FILES_MOVED + 1))
+    fi
+
+    # Move discarded file → 03_evaluation.md (if no judge file exists)
+    local discarded_file="$SRC_BASE/discarded/${name}.md"
+    if [ -f "$discarded_file" ] && [ ! -f "$CYCLE_DIR/03_evaluation.md" ]; then
+      mv "$discarded_file" "$CYCLE_DIR/03_evaluation.md"
+      FILES_MOVED=$((FILES_MOVED + 1))
+    fi
+
+    # Rename strategy file: {name}.md → {id}_{name}.md
+    local new_strat_file="$STRAT_DIR/${STRAT_ID}_${name}.md"
+    if [ ! -f "$new_strat_file" ]; then
+      mv "$strat_file" "$new_strat_file"
+    fi
+
+    if [ "$FILES_MOVED" -gt 0 ]; then
+      info "  Migrated: $name → ${STRAT_ID}_${name}/ ($FILES_MOVED artifact file(s))"
+    else
+      info "  Renamed: $name → ${STRAT_ID}_${name} (no artifact files found)"
+    fi
+    MIGRATED=$((MIGRATED + 1))
+  done
+
+  if [ "$MIGRATED" -gt 0 ]; then
+    ok "Migrated $MIGRATED strategy(s) to per-cycle artifact structure"
+    changed
+  fi
+
+  # Clean up empty old directories
+  if [ "$DRY_RUN" = false ]; then
+    local CLEANED=0
+    for subdir in look research-log discarded; do
+      local old_dir="$SRC_BASE/$subdir"
+      if [ -d "$old_dir" ]; then
+        # Only remove if empty (all files should have been moved)
+        local remaining
+        remaining=$(find "$old_dir" -type f 2>/dev/null | wc -l)
+        if [ "$remaining" -eq 0 ]; then
+          rm -rf "$old_dir"
+          CLEANED=$((CLEANED + 1))
+        else
+          warn "$subdir/ still has $remaining file(s) — keeping directory"
+        fi
+      fi
+    done
+    if [ "$CLEANED" -gt 0 ]; then
+      ok "Removed $CLEANED empty legacy directory(s)"
       changed
     fi
   fi
@@ -830,6 +1020,7 @@ main() {
   merge_mcp
   migrate_v120_to_v130
   migrate_v130_to_v140
+  migrate_artifacts_to_per_cycle
   validate_cache
   cleanup_design_docs
   validate_plugin

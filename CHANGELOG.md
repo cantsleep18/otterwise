@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Research and continue now output to `.otterwise/strategies/` instead of `.otterwise/nodes/`
 - Renamed `validate-autopilot-state.sh` to `validate-state.sh` for skill-agnostic naming
 - Continue blocks when autopilot is actively running (prevents race conditions)
+- Restructured artifacts: per-cycle folders in `.otterwise/artifacts/{id}_{name}/` with numbered phase prefixes (01_discovery.md, 02_evidence.md, 03_evaluation.md)
+- Strategy filenames now include date+hash prefix for sorting (`{YYYYMMDD_HHMM}_{8hex}_{name}.md`)
+- Removed `discarded/` directory — SKIP decisions recorded in 03_evaluation.md
+- ID format updated to include time: `YYYYMMDD_HHMM_{8hex}`
 
 ### Added
 - Test validators for research and continue SKILL.md files

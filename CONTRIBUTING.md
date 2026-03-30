@@ -13,7 +13,7 @@ Thanks for your interest in contributing! This guide covers development setup, t
 
 Install Otterwise as a Claude Code extension, then run `/otterwise:research` in a Claude Code session. This creates the `.otterwise/` directory and runs the OLJC research loop.
 
-For autonomous mode, use `/otterwise:autopilot` — this runs an infinite OBSERVE/LOOK/JUDGE/CRYSTALLIZE cycle, producing strategy documents in `.otterwise/strategies/`.
+For autonomous mode, use `/otterwise:autopilot` — this runs an infinite OBSERVE/LOOK/JUDGE/CRYSTALLIZE cycle, producing strategy documents in `.otterwise/strategies/` and per-cycle intermediate outputs in `.otterwise/artifacts/`.
 
 ## Testing
 

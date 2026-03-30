@@ -143,8 +143,6 @@ migrate_nodes_to_strategies() {
   fi
 
   mkdir -p "$STRAT_DIR"
-  mkdir -p "$STRAT_DIR/look"
-  mkdir -p "$STRAT_DIR/discarded"
 
   local CONVERTED=0
 

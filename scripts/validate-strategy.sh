@@ -7,13 +7,8 @@ set -euo pipefail
 
 FILE_PATH="${TOOL_INPUT_file_path:-}"
 
-# Only check strategy files under .otterwise/strategies/ (not look/ or discarded/)
+# Only check strategy files under .otterwise/strategies/
 if [[ "$FILE_PATH" != *.otterwise/strategies/*.md ]]; then
-  exit 0
-fi
-# Skip subdirectory files (look/, research-log/, discarded/)
-BASENAME_DIR=$(dirname "$FILE_PATH")
-if [[ "$BASENAME_DIR" == */look ]] || [[ "$BASENAME_DIR" == */research-log ]] || [[ "$BASENAME_DIR" == */discarded ]]; then
   exit 0
 fi
 

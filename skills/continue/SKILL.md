@@ -65,7 +65,7 @@ Discover a phenomenon from data — observation, not analysis. The goal is "어?
 
 1. **Teams API**: TeamCreate `"continue-{YYYYMMDD-HHMMSS}-observe-{name}"`, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
 2. **Researcher receives**: mode-specific objectives (see autopilot Mode Objectives table), dataset path, existing strategy graph summary, parent context (for derive/combine).
-3. **Output**: `.otterwise/artifacts/research-log/{name}-observe.md`
+3. **Output**: `.otterwise/artifacts/{id}_{name}/01_discovery.md`
    ```
    ## 현상         — observed fact, no interpretation
    ## 데이터 근거   — file, column, row range where found
@@ -88,7 +88,7 @@ Researchers verify the phenomenon against actual price behavior in parallel.
    - NO summary-only cases — no table means no case
    - Use WebSearch/WebFetch for price validation; every claim needs `[source: URL or file]`
 4. **50%+ failure tolerance**: if majority fail, continue with available results.
-5. **Synthesize** into `.otterwise/artifacts/look/{name}.md`:
+5. **Synthesize** into `.otterwise/artifacts/{id}_{name}/02_evidence.md`:
    ```
    ## 현상 요약    — phenomenon from OBSERVE
    ## 사례 기록    — per-case sections with tables + source callouts
@@ -108,7 +108,7 @@ Team lead judges inline — no agent spawn, no Teams API.
    - **예외 해석**: Are exceptions understandable, not pattern-breaking?
    - **투자 유의미성**: Does this matter for investment decisions?
 3. Decide: **WRITE** or **SKIP**. No middle ground.
-4. Log to `.otterwise/artifacts/research-log/{name}-judge.md`:
+4. Log to `.otterwise/artifacts/{id}_{name}/03_evaluation.md`:
    ```
    ## 판정: {WRITE | SKIP}
    ## 근거
@@ -119,7 +119,7 @@ Team lead judges inline — no agent spawn, no Teams API.
    ## 사유
    {1-2 sentence rationale}
    ```
-5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `artifacts/discarded/{name}.md`, report result to user, done.
+5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log verdict to `03_evaluation.md`, report result to user, done.
 
 ## Phase: CRYSTALLIZE
 
@@ -127,8 +127,8 @@ Write the final strategy document in Obsidian-compatible format.
 
 1. **Teams API**: TeamCreate `"continue-{YYYYMMDD-HHMMSS}-crystallize-{name}"`, 1 task, 1 researcher. Poll 5-min intervals, 10-min timeout.
 2. **Researcher receives**: JUDGE rationale, OBSERVE phenomenon, LOOK case records (full), expansion type, related strategy names, dataset path.
-3. **Output**: `.otterwise/strategies/{name}.md` with this exact structure:
-   - YAML frontmatter: `id` (YYYYMMDD_{8hex}), `type` (seed|derive|explore|combine), `status: draft`, `phenomenon`, `dataUsed`, `observationPeriod`, `researchMode`, `tags`
+3. **Output**: `.otterwise/strategies/{id}_{name}.md` with this exact structure:
+   - YAML frontmatter: `id` (YYYYMMDD_HHMM_{8hex}), `type` (seed|derive|explore|combine), `status: draft`, `phenomenon`, `dataUsed`, `observationPeriod`, `researchMode`, `tags`
    - `# {전략 제목}`
    - `## 관련 전략` — `[[wikilinks]]` to related strategies, or "독립 전략 (seed)"
    - `## 현상` — concise phenomenon with key numbers
@@ -156,7 +156,7 @@ Each phase follows: **TeamCreate** (`"continue-{YYYYMMDD-HHMMSS}-{phase}-{name}"
 | Researcher crash (no output) | Log, exclude from synthesis. |
 | TeamDelete fails | Retry once. Log and continue. |
 | Phase timeout | Continue with available results, log warning. |
-| JUDGE returns SKIP | Log to `discarded/`, report to user, done. |
+| JUDGE returns SKIP | Log verdict to `03_evaluation.md`, report to user, done. |
 | Target strategy not found | Abort, list available strategies for user. |
 
 ## Important Rules
@@ -166,7 +166,7 @@ Each phase follows: **TeamCreate** (`"continue-{YYYYMMDD-HHMMSS}-{phase}-{name}"
 - All Agent calls in a single message for true parallel execution.
 - No implicit state sharing — serialize all outputs to disk.
 - Strategy graph is reconstructed from frontmatter + wikilinks each cycle.
-- Strategy names use kebab-case. Strategy IDs: `YYYYMMDD_{8hex}`.
+- Strategy names use kebab-case. Strategy IDs: `YYYYMMDD_HHMM_{8hex}`.
 - All strategy content in Korean. Obsidian-compatible format (wikilinks, tags, callouts).
 - Single cycle only — no looping. For continuous research, use `/otterwise:autopilot`.
 - **Cannot run while autopilot is running** — blocks to prevent race conditions with parallel Teams API calls and competing strategy writes. Only allowed when autopilot is paused, aborted, or not active.

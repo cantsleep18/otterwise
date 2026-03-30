@@ -185,10 +185,66 @@ else
   fail "Data callout syntax [!data] missing"
 fi
 
-# ── 7. Additional Structural Checks ─────────────────────────────
+# ── 7. Artifact Structure ──────────────────────────────────────
 
 echo ""
-echo "=== 7. Additional Checks ==="
+echo "=== 7. Artifact Structure ==="
+
+# Check new ID format: YYYYMMDD_HHMM_{8hex} (literal description or actual example)
+if grep -qP 'YYYYMMDD_HHMM_\{?8hex\}?|\d{8}_\d{4}_[a-f0-9]{8}' "$SKILL_FILE"; then
+  pass "New ID format YYYYMMDD_HHMM_{8hex} referenced"
+else
+  fail "New ID format YYYYMMDD_HHMM_{8hex} not referenced"
+fi
+
+# Check old ID format description is NOT present (YYYYMMDD_{8hex} without HHMM)
+if grep -qP 'YYYYMMDD_\{?8hex\}?' "$SKILL_FILE" && ! grep -qP 'YYYYMMDD_HHMM' "$SKILL_FILE"; then
+  fail "Old ID format YYYYMMDD_{8hex} still present (should be YYYYMMDD_HHMM_{8hex})"
+else
+  pass "No old ID format YYYYMMDD_{8hex} found"
+fi
+
+# Check artifacts/ directory referenced
+if grep -q "artifacts/" "$SKILL_FILE"; then
+  pass "artifacts/ directory referenced"
+else
+  fail "artifacts/ directory not referenced"
+fi
+
+# Check old directory paths NOT present
+if grep -q "strategies/look/" "$SKILL_FILE"; then
+  fail "Old path strategies/look/ still present"
+else
+  pass "No old strategies/look/ path"
+fi
+
+if grep -q "strategies/research-log/" "$SKILL_FILE"; then
+  fail "Old path strategies/research-log/ still present"
+else
+  pass "No old strategies/research-log/ path"
+fi
+
+# Check phase file naming: 01_discovery, 02_evidence, 03_evaluation
+PHASE_FILES=("01_discovery" "02_evidence" "03_evaluation")
+for pf in "${PHASE_FILES[@]}"; do
+  if grep -q "$pf" "$SKILL_FILE"; then
+    pass "Phase file '$pf' referenced"
+  else
+    fail "Phase file '$pf' not referenced"
+  fi
+done
+
+# Check no discarded/ directory
+if grep -q "discarded/" "$SKILL_FILE"; then
+  fail "discarded/ directory still referenced (should be removed)"
+else
+  pass "No discarded/ directory reference"
+fi
+
+# ── 8. Additional Structural Checks ─────────────────────────────
+
+echo ""
+echo "=== 8. Additional Checks ==="
 
 # Korean content reference
 if grep -q "Korean\|한국\|한글" "$SKILL_FILE"; then

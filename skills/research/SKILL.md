@@ -27,7 +27,7 @@ INIT ──> ROUTE ──> OBSERVE ──> LOOK ──> JUDGE ──┬──> C
 ## Phase: INIT
 
 1. Parse user input: dataset path, optional goals, optional mode override.
-2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/look/`, `artifacts/research-log/`, `artifacts/discarded/`.
+2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/`.
 3. Write `config.json`: `{ dataset, goals, investmentMode: true }`.
 4. Explore dataset inline (do NOT spawn agent): list files, read samples, identify data types (prices, financials, news, insider transactions), note quality issues.
 5. Proceed to **ROUTE**.
@@ -63,13 +63,14 @@ Discover a phenomenon from data -- observation, not analysis. The goal is "어?"
 
 1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
 2. **Researcher receives**: mode-specific objectives, dataset path, user goals. Key instruction: observe phenomena, do not hypothesize.
-3. **Output**: `.otterwise/artifacts/research-log/{name}-observe.md`
+3. **Output**: `.otterwise/artifacts/{id}_{name}/01_discovery.md`
    ```
    ## 현상         — observed fact, no interpretation
    ## 데이터 근거   — file, column, row range where found
    ## 흥미로운 점   — why this stands out
    ## 확인 필요 사항 — specific questions for LOOK
    ```
+   Create the per-cycle folder `artifacts/{id}_{name}/` on first write.
 4. Shutdown researcher, delete team. Pass phenomenon to LOOK.
 
 ## LOOK
@@ -86,7 +87,7 @@ Researchers verify the phenomenon against actual price behavior in parallel.
    - NO summary-only cases -- no table means no case
    - Use WebSearch/WebFetch for price validation; every claim needs `[source: URL or file]`
 4. **50%+ failure tolerance**: if majority fail, continue with available results.
-5. **Synthesize** into `.otterwise/artifacts/look/{name}.md`:
+5. **Synthesize** into `.otterwise/artifacts/{id}_{name}/02_evidence.md` (combined) and per-subset files `02_evidence_{subset}.md`:
    ```
    ## 현상 요약    — phenomenon from OBSERVE
    ## 사례 기록    — per-case sections with tables + source callouts
@@ -106,7 +107,7 @@ Team lead judges inline -- no agent spawn, no Teams API.
    - **예외 해석**: Are exceptions understandable, not pattern-breaking?
    - **투자 유의미성**: Does this matter for investment decisions?
 3. Decide: **WRITE** or **SKIP**. No middle ground.
-4. Log to `.otterwise/artifacts/research-log/{name}-judge.md`:
+4. Log to `.otterwise/artifacts/{id}_{name}/03_evaluation.md`:
    ```
    ## 판정: {WRITE | SKIP}
    ## 근거
@@ -117,7 +118,7 @@ Team lead judges inline -- no agent spawn, no Teams API.
    ## 사유
    {1-2 sentence rationale}
    ```
-5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `artifacts/discarded/{name}.md`, report result to user, done.
+5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → record SKIP in `03_evaluation.md`, report result to user, done.
 
 ## CRYSTALLIZE
 
@@ -125,8 +126,8 @@ Write the final strategy document in Obsidian-compatible format.
 
 1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 10-min timeout.
 2. **Researcher receives**: JUDGE rationale, OBSERVE phenomenon, LOOK case records (full), dataset path.
-3. **Output**: `.otterwise/strategies/{name}.md` -- must pass `validate-strategy.sh`:
-   - YAML frontmatter: `id` (YYYYMMDD_{8hex}), `type: seed` (always), `status: draft` (always), `phenomenon`, `researchMode`, `tags`, optional `observationPeriod` (include for time-series data, omit for snapshots)
+3. **Output**: `.otterwise/strategies/{id}_{name}.md` -- must pass `validate-strategy.sh`:
+   - YAML frontmatter: `id` (YYYYMMDD_HHMM_{8hex}), `type: seed` (always), `status: draft` (always), `phenomenon`, `researchMode`, `tags`, optional `observationPeriod` (include for time-series data, omit for snapshots)
    - `## 관련 전략` -- "독립 전략 (seed)" (no existing graph)
    - `## 현상` -- concise phenomenon with key numbers
    - `## 가격 관찰` -- summary table + per-case `| 날짜 | 가격 | 이벤트 |` tables + `> [!data]-` callouts + `⚠️` exceptions
@@ -147,18 +148,19 @@ Each phase follows: **TeamCreate** (`"research-{YYYYMMDD-HHMMSS}-{phase}-{name}"
 .otterwise/
   config.json                          ← dataset, goals, investmentMode
   strategies/
-    {name}.md                          ← CRYSTALLIZE output (Obsidian vault)
+    {id}_{name}.md                     ← CRYSTALLIZE output (Obsidian vault)
   artifacts/
-    look/{name}.md                     ← LOOK case records
-    research-log/{name}-observe.md     ← OBSERVE phenomenon
-    research-log/{name}-judge.md       ← JUDGE decision
-    discarded/{name}.md                ← SKIP decisions
+    {id}_{name}/                       ← per-cycle folder (created in OBSERVE)
+      01_discovery.md                  ← OBSERVE phenomenon
+      02_evidence.md                   ← LOOK combined case records
+      02_evidence_{subset}.md          ← LOOK per-subset evidence
+      03_evaluation.md                 ← JUDGE decision (WRITE or SKIP)
 ```
 
 ### Strategy Frontmatter
 
 ```yaml
-id: "YYYYMMDD_{8hex}"
+id: "YYYYMMDD_HHMM_{8hex}"
 type: seed                             # always seed for research (no derive/explore/combine)
 status: draft                          # always draft (never skip to developing/established)
 phenomenon: "one-line description"
@@ -179,7 +181,7 @@ Relationships via `[[wikilinks]]` in `## 관련 전략`. All strategy content in
 | Researcher crash (no output) | Log, exclude from synthesis. |
 | TeamDelete fails | Retry once. Log and continue. |
 | Phase timeout | Continue with available results, log warning. |
-| JUDGE returns SKIP | Log to `discarded/`, report to user, done. |
+| JUDGE returns SKIP | Record in `03_evaluation.md`, report to user, done. |
 
 ## Important Rules
 
@@ -187,7 +189,7 @@ Relationships via `[[wikilinks]]` in `## 관련 전략`. All strategy content in
 - One team per phase, destroyed after result collection.
 - All Agent calls in a single message for true parallel execution.
 - No implicit state sharing -- serialize all outputs to disk.
-- Strategy names use kebab-case. Strategy IDs: `YYYYMMDD_{8hex}`.
+- Strategy names use kebab-case. Strategy IDs: `YYYYMMDD_HHMM_{8hex}`.
 - Research runs once -- no loop, no resume. Each invocation starts fresh.
 - No autopilot.json or autopilot-state.json -- research has no loop state.
 - All strategy content in Korean. Obsidian-compatible format (wikilinks, tags, callouts).
