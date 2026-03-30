@@ -27,7 +27,7 @@ INIT ──> ROUTE ──> OBSERVE ──> LOOK ──> JUDGE ──┬──> C
 ## Phase: INIT
 
 1. Parse user input: dataset path, optional goals, optional mode override.
-2. Create `.otterwise/` with subdirectories: `strategies/`, `strategies/look/`, `strategies/research-log/`, `strategies/discarded/`.
+2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/look/`, `artifacts/research-log/`, `artifacts/discarded/`.
 3. Write `config.json`: `{ dataset, goals, investmentMode: true }`.
 4. Explore dataset inline (do NOT spawn agent): list files, read samples, identify data types (prices, financials, news, insider transactions), note quality issues.
 5. Proceed to **ROUTE**.
@@ -63,7 +63,7 @@ Discover a phenomenon from data -- observation, not analysis. The goal is "어?"
 
 1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
 2. **Researcher receives**: mode-specific objectives, dataset path, user goals. Key instruction: observe phenomena, do not hypothesize.
-3. **Output**: `.otterwise/strategies/research-log/{name}-observe.md`
+3. **Output**: `.otterwise/artifacts/research-log/{name}-observe.md`
    ```
    ## 현상         — observed fact, no interpretation
    ## 데이터 근거   — file, column, row range where found
@@ -86,7 +86,7 @@ Researchers verify the phenomenon against actual price behavior in parallel.
    - NO summary-only cases -- no table means no case
    - Use WebSearch/WebFetch for price validation; every claim needs `[source: URL or file]`
 4. **50%+ failure tolerance**: if majority fail, continue with available results.
-5. **Synthesize** into `.otterwise/strategies/look/{name}.md`:
+5. **Synthesize** into `.otterwise/artifacts/look/{name}.md`:
    ```
    ## 현상 요약    — phenomenon from OBSERVE
    ## 사례 기록    — per-case sections with tables + source callouts
@@ -106,7 +106,7 @@ Team lead judges inline -- no agent spawn, no Teams API.
    - **예외 해석**: Are exceptions understandable, not pattern-breaking?
    - **투자 유의미성**: Does this matter for investment decisions?
 3. Decide: **WRITE** or **SKIP**. No middle ground.
-4. Log to `.otterwise/strategies/research-log/{name}-judge.md`:
+4. Log to `.otterwise/artifacts/research-log/{name}-judge.md`:
    ```
    ## 판정: {WRITE | SKIP}
    ## 근거
@@ -117,7 +117,7 @@ Team lead judges inline -- no agent spawn, no Teams API.
    ## 사유
    {1-2 sentence rationale}
    ```
-5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `strategies/discarded/{name}.md`, report result to user, done.
+5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `artifacts/discarded/{name}.md`, report result to user, done.
 
 ## CRYSTALLIZE
 
@@ -147,7 +147,8 @@ Each phase follows: **TeamCreate** (`"research-{YYYYMMDD-HHMMSS}-{phase}-{name}"
 .otterwise/
   config.json                          ← dataset, goals, investmentMode
   strategies/
-    {name}.md                          ← CRYSTALLIZE output
+    {name}.md                          ← CRYSTALLIZE output (Obsidian vault)
+  artifacts/
     look/{name}.md                     ← LOOK case records
     research-log/{name}-observe.md     ← OBSERVE phenomenon
     research-log/{name}-judge.md       ← JUDGE decision

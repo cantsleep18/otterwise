@@ -36,7 +36,7 @@ Before each phase, read `autopilot-state.json`:
 ## Phase: INIT (no existing strategies)
 
 1. Parse user input: dataset path, optional investment goals.
-2. Create `.otterwise/` with subdirectories: `strategies/`, `strategies/look/`, `strategies/research-log/`.
+2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/look/`, `artifacts/research-log/`, `artifacts/discarded/`.
 3. Write `config.json` (`dataset`, `goals`, `investmentMode: true`), `autopilot.json` (`status: "running"`, empty `strategies[]`, `modeStats`, `lastModes`, `cooldown`), `autopilot-state.json` (`command: "running"`).
 4. Explore dataset inline (do NOT spawn agent): list files, read samples, identify data types (prices, financials, news, insider transactions), note quality issues.
 5. Proceed to **ROUTE**.
@@ -91,7 +91,7 @@ State check. Discover a phenomenon from data -- observation, not analysis. The g
 
 1. **Teams API**: TeamCreate `"autopilot-{YYYYMMDD-HHMMSS}-observe-{name}"`, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
 2. **Researcher receives**: mode-specific objectives (see Mode Objectives below), dataset path, existing strategy graph summary, parent context (for derive/combine). Key instruction: observe phenomena, do not hypothesize.
-3. **Output**: `.otterwise/strategies/research-log/{name}-observe.md`
+3. **Output**: `.otterwise/artifacts/research-log/{name}-observe.md`
    ```
    ## 현상         — observed fact, no interpretation
    ## 데이터 근거   — file, column, row range where found
@@ -114,7 +114,7 @@ State check. Researchers verify the phenomenon against actual price behavior in 
    - NO summary-only cases -- no table means no case
    - Use WebSearch/WebFetch for price validation; every claim needs `[source: URL or file]`
 4. **50%+ failure tolerance**: if majority fail, continue with available results.
-5. **Synthesize** researcher outputs into `.otterwise/strategies/look/{name}.md`:
+5. **Synthesize** researcher outputs into `.otterwise/artifacts/look/{name}.md`:
    ```
    ## 현상 요약    — phenomenon from OBSERVE
    ## 사례 기록    — per-case sections with tables + source callouts
@@ -134,7 +134,7 @@ State check. Team lead judges inline -- no agent spawn, no Teams API.
    - **예외 해석**: Are exceptions understandable, not pattern-breaking?
    - **투자 유의미성**: Does this matter for investment decisions?
 3. Decide: **WRITE** or **SKIP**. No middle ground.
-4. Log to `.otterwise/strategies/research-log/{name}-judge.md`:
+4. Log to `.otterwise/artifacts/research-log/{name}-judge.md`:
    ```
    ## 판정: {WRITE | SKIP}
    ## 근거
@@ -145,7 +145,7 @@ State check. Team lead judges inline -- no agent spawn, no Teams API.
    ## 사유
    {1-2 sentence rationale}
    ```
-5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `strategies/discarded/{name}.md`, return to ROUTE.
+5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `artifacts/discarded/{name}.md`, return to ROUTE.
 
 ## CRYSTALLIZE
 
@@ -203,8 +203,9 @@ Each phase follows: **TeamCreate** (`"autopilot-{YYYYMMDD-HHMMSS}-{phase}-{name}
   autopilot-state.json                 ← user control: running/pause/abort
   error.log
   strategies/
-    {name}.md                          ← CRYSTALLIZE output (frontmatter = graph source of truth)
-    look/{name}.md                     ← LOOK case records
+    {name}.md                          ← CRYSTALLIZE output (Obsidian vault — graph source of truth)
+  artifacts/
+    look/{name}.md                     ← LOOK case records (synthesis + researcher outputs)
     research-log/{name}-observe.md     ← OBSERVE phenomenon
     research-log/{name}-judge.md       ← JUDGE decision
     discarded/{name}.md                ← SKIP decisions
