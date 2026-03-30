@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# validate-autopilot-state.sh
+# validate-state.sh
 # Validates autopilot-state.json integrity after writes.
-# Called as a PostToolUse hook on Write to catch corrupted or invalid state early.
+# Called as a PostToolUse hook on Write for all skills (research, continue, autopilot)
+# to catch corrupted or invalid state early.
 #
 # The state file is a lightweight control signal with three fields:
 #   command   — "running", "pause", or "abort"

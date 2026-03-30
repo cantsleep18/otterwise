@@ -153,7 +153,28 @@ merge_hooks() {
 
   # Canonical hooks — matchers that must exist under PostToolUse
   local -A CANONICAL_MATCHERS
-  CANONICAL_MATCHERS["Write"]='bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-autopilot-state.sh'
+  CANONICAL_MATCHERS["Write"]='bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-state.sh'
+
+  # Rename migration: update any hooks still referencing the old script name
+  local OLD_SCRIPT="validate-autopilot-state.sh"
+  local NEW_SCRIPT="validate-state.sh"
+  if jq -e '.hooks.PostToolUse[].hooks[] | select(.command | contains("'"$OLD_SCRIPT"'"))' "$HOOKS" >/dev/null 2>&1; then
+    info "Renaming hook script reference: $OLD_SCRIPT → $NEW_SCRIPT"
+    if [ "$DRY_RUN" = false ]; then
+      jq '(.hooks.PostToolUse[].hooks[] | select(.command | contains("validate-autopilot-state.sh"))).command |= gsub("validate-autopilot-state\\.sh"; "validate-state.sh")' \
+        "$HOOKS" > "${HOOKS}.tmp"
+      if jq empty "${HOOKS}.tmp" 2>/dev/null; then
+        mv "${HOOKS}.tmp" "$HOOKS"
+        ok "Renamed hook script reference"
+        changed
+      else
+        rm -f "${HOOKS}.tmp"
+        warn "Failed to rename hook script — leaving unchanged"
+      fi
+    else
+      info "(dry-run) Would rename hook script reference"
+    fi
+  fi
 
   local CURRENT_MATCHERS
   CURRENT_MATCHERS=$(jq -r '.hooks.PostToolUse[]?.matcher // empty' "$HOOKS" 2>/dev/null || echo "")

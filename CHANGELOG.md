@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-03-30
+
+### Changed
+- Unified research and continue skills to use OLJC methodology (OBSERVE → LOOK → JUDGE → CRYSTALLIZE), matching autopilot
+- Research and continue now output to `.otterwise/strategies/` instead of `.otterwise/nodes/`
+- Renamed `validate-autopilot-state.sh` to `validate-state.sh` for skill-agnostic naming
+- Continue blocks when autopilot is actively running (prevents race conditions)
+
+### Added
+- Test validators for research and continue SKILL.md files
+- Strategy example fixture for testing
+
+## [1.3.0] - 2026-03-24
+
+### Changed
+- Rewrote autopilot as investment-focused OLJC loop (OBSERVE → LOOK → JUDGE → CRYSTALLIZE)
+- Replaced node-based research graph with strategy graph using Obsidian-compatible wikilinks
+- Adaptive router with 10 research modes and 4 expansion types (seed/derive/explore/combine)
+
+### Added
+- Strategy validation hook (`validate-strategy.sh`)
+- Evidence warning hook (`warn-strategy-evidence.sh`)
+- Investment strategy document format with Korean sections
+
 ## [1.2.0] - 2026-03-23
 
 ### Added

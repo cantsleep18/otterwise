@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# validate-skill-md.sh
+# validate-skill-md.sh  (autopilot-specific)
 # Validates skills/autopilot/SKILL.md structural integrity after assembly.
+# For research and continue validators, see validate-skill-md-research.sh
+# and validate-skill-md-continue.sh respectively.
 # Tests: YAML frontmatter, strategy template sections, research modes,
 #        OLJC flow completeness, autopilot-state.json checks between phases.
 

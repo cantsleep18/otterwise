@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-autopilot-state.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-state.sh"
           },
           {
             "type": "command",

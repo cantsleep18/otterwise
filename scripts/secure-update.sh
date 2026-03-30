@@ -28,7 +28,7 @@ EXPECTED_REMOTE_SSH="git@github.com:cantsleep18/otterwise.git"
 
 # Allowed hook script paths (relative to PLUGIN_ROOT)
 ALLOWED_HOOK_SCRIPTS=(
-  "scripts/validate-autopilot-state.sh"
+  "scripts/validate-state.sh"
   "scripts/validate-strategy.sh"
   "scripts/warn-strategy-evidence.sh"
 )

@@ -22,7 +22,7 @@ For autonomous mode, use `/otterwise:autopilot` — this runs an infinite OBSERV
 Hooks in `hooks/hooks.json` run automatically on tool use:
 - `validate-strategy.sh` — validates strategy `.md` format on Write
 - `warn-strategy-evidence.sh` — warns on missing data evidence
-- `validate-autopilot-state.sh` — validates autopilot state integrity
+- `validate-state.sh` — validates state file integrity
 
 ## Code Style
 

@@ -31,7 +31,7 @@ otterwise/
 │   ├── check-version-sync.sh    # CI script to verify versions
 │   ├── validate-strategy.sh        # Hook: validate strategy .md format
 │   ├── warn-strategy-evidence.sh   # Hook: warn on missing data evidence
-│   └── validate-autopilot-state.sh # Hook: validate autopilot state
+│   └── validate-state.sh            # Hook: validate state file integrity
 ├── tests/                       # Integration tests
 ├── settings.json                # Tool permissions (empty, no MCP tools)
 ├── .mcp.json                    # MCP server config (empty, REPL removed)
@@ -60,7 +60,7 @@ Claude Code:
 
 **Plugin code (read-only in session):**
 ```
-~/.claude/plugins/cache/otterwise/otterwise/1.3.0/
+~/.claude/plugins/cache/otterwise/otterwise/1.4.0/
 ├── .claude-plugin/
 ├── skills/
 ├── hooks/
@@ -280,7 +280,7 @@ Prevents force pulls and history rewrites.
 ### Hook Safety: Whitelist
 
 Hooks allowed to reference only:
-- `scripts/validate-autopilot-state.sh`
+- `scripts/validate-state.sh`
 - `scripts/validate-strategy.sh`
 - `scripts/warn-strategy-evidence.sh`
 

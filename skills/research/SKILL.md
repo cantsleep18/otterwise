@@ -1,187 +1,192 @@
 ---
 name: research
-description: Start a new Otterwise research session on a dataset
+description: Start a new investment research session — single OLJC cycle on a dataset
 ---
 
 # /otterwise:research
 
-Start a new autonomous research session. You (the main Claude session) ARE the research lead -- do NOT delegate to a sub-agent.
+Run one investment research cycle on a dataset. Discover a phenomenon (OBSERVE), verify it against price data (LOOK), judge its validity (JUDGE), and crystallize it into a strategy document (CRYSTALLIZE). You (the main Claude session) ARE the research lead -- do NOT delegate leadership to a sub-agent.
 
 ## Usage
-The user should provide:
-- Path to a dataset file (CSV, Excel, Parquet, etc.) or directory
-- Research goals or questions (optional -- will do general profiling if none given)
+
+```
+/otterwise:research /path/to/dataset "Optional investment goals"
+```
+
+Optional: specify research mode -- `/otterwise:research /path/to/dataset "goals" mode=news_replay`. Default: auto-selected in ROUTE.
 
 ## Workflow
 
-### 1. Setup
-1. If dataset path not provided, ask the user for it
-2. Create `.otterwise/` directory in the project root if it doesn't exist
-3. Create or update `.otterwise/config.json`:
-   ```json
-   {
-     "dataset": "<absolute-path-to-dataset>",
-     "dataDescription": "<brief description of the data if user provided one>",
-     "goals": ["<user-provided-goals-or-default>"],
-     "created": "<ISO-timestamp>"
-   }
+```
+INIT ──> ROUTE ──> OBSERVE ──> LOOK ──> JUDGE ──┬──> CRYSTALLIZE ──> done
+                     │           │        │      │
+                   Team×1    Team×K    inline    SKIP → log + done
+                                                 Team×1
+```
+
+## Phase: INIT
+
+1. Parse user input: dataset path, optional goals, optional mode override.
+2. Create `.otterwise/` with subdirectories: `strategies/`, `strategies/look/`, `strategies/research-log/`, `strategies/discarded/`.
+3. Write `config.json`: `{ dataset, goals, investmentMode: true }`.
+4. Explore dataset inline (do NOT spawn agent): list files, read samples, identify data types (prices, financials, news, insider transactions), note quality issues.
+5. Proceed to **ROUTE**.
+
+If dataset missing/empty: abort with message to user.
+
+## ROUTE
+
+Select research mode -- auto or user-specified.
+
+If user specified a mode, use it. Otherwise, reason about dataset contents (available data types, file structure) and user goals to pick the best fit.
+
+**Research modes** (10):
+
+| # | Mode | Description |
+|---|------|-------------|
+| 1 | `brute_force` | Indicator x condition enumeration |
+| 2 | `news_replay` | News event price patterns |
+| 3 | `condition_combo` | Combine weak signals into strong |
+| 4 | `anomaly_detection` | Outlier → price reaction |
+| 5 | `copycat` | Apply valid pattern to other stocks |
+| 6 | `narrative_shift` | Corporate story change → price impact |
+| 7 | `consensus_gap` | Market expectation vs reality gap |
+| 8 | `supply_chain` | Upstream/downstream company signals |
+| 9 | `regulatory` | Policy/regulation → sector impact |
+| 10 | `behavioral` | Executive behavior patterns → signals |
+
+Expansion type is always `seed` (new research, no existing graph). Pass routing directive (mode, focus area, priority data files) inline to OBSERVE.
+
+## OBSERVE
+
+Discover a phenomenon from data -- observation, not analysis. The goal is "어?" not "통계적 유의성".
+
+1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
+2. **Researcher receives**: mode-specific objectives, dataset path, user goals. Key instruction: observe phenomena, do not hypothesize.
+3. **Output**: `.otterwise/strategies/research-log/{name}-observe.md`
    ```
+   ## 현상         — observed fact, no interpretation
+   ## 데이터 근거   — file, column, row range where found
+   ## 흥미로운 점   — why this stands out
+   ## 확인 필요 사항 — specific questions for LOOK
+   ```
+4. Shutdown researcher, delete team. Pass phenomenon to LOOK.
 
-### 2. Explore the Dataset
-- Read the dataset (or sample files if it's a directory) to understand its structure
-- Identify key fields, types, and patterns
-- Note data size, format, and any quirks
+## LOOK
 
-### 3. Understand Research History
-- Use Glob to find all `.otterwise/nodes/**/report.md` files
-- Read each report.md -- parse the YAML frontmatter:
-  - `id`: unique node identifier (YYYYMMDD_HHMMSS_{8hex}_{name})
-  - `parentIds`: list of parent node IDs (empty for root nodes)
-  - `related`: sibling/related node IDs
-  - `status`: completed, in-progress, dead-end
-  - `findings_count`: number of key findings
-- Read the full content of each report to understand what was discovered
-- Build a mental model of the research DAG
+Researchers verify the phenomenon against actual price behavior in parallel.
 
-For the FIRST research session (no previous reports):
-- Start with basic profiling, distribution analysis, and key variable relationships
+1. **Teams API**: TeamCreate, K tasks (default 3), K researchers in ONE message. Poll 5-min intervals, 10-min timeout.
+2. **Researcher receives**: phenomenon from OBSERVE, dataset path, assigned subset (time period/sector/stock group), mode context.
+3. **Data evidence rules** -- researchers MUST:
+   - Include `| 날짜 | 가격 | 이벤트 |` table for every case
+   - Write each case as `### 사례 N: {종목} ({시기})`
+   - Add `> [!data]- 원본 데이터` callout with source paths
+   - Mark exceptions: `### ⚠️ 사례 N: {종목} (예외)` with interpretation
+   - NO summary-only cases -- no table means no case
+   - Use WebSearch/WebFetch for price validation; every claim needs `[source: URL or file]`
+4. **50%+ failure tolerance**: if majority fail, continue with available results.
+5. **Synthesize** into `.otterwise/strategies/look/{name}.md`:
+   ```
+   ## 현상 요약    — phenomenon from OBSERVE
+   ## 사례 기록    — per-case sections with tables + source callouts
+   ## 공통점       — repeated patterns across cases
+   ## 갈림길       — conditions that lead to different outcomes
+   ```
+6. Shutdown researchers, delete team. Pass synthesized output to JUDGE.
 
-### 4. Design Objectives
-Create 3-5 sets of objective bullet points, one per teammate. Each set should:
-- Be specific and actionable
-- Reference specific columns/features/files when possible
-- Include expected output format
-- Be independent enough for parallel execution
+## JUDGE
 
-### 5. Create Agent Team and Spawn Researchers
+Team lead judges inline -- no agent spawn, no Teams API.
 
-IMPORTANT: You are the team lead. Create the team and spawn teammates DIRECTLY -- do NOT delegate to another agent.
+1. Read OBSERVE output and LOOK output in full.
+2. Apply four criteria (reason through evidence, no numeric thresholds):
+   - **일관성**: Do cases show a repeatable pattern?
+   - **설명 가능성**: Can the phenomenon be reasonably explained?
+   - **예외 해석**: Are exceptions understandable, not pattern-breaking?
+   - **투자 유의미성**: Does this matter for investment decisions?
+3. Decide: **WRITE** or **SKIP**. No middle ground.
+4. Log to `.otterwise/strategies/research-log/{name}-judge.md`:
+   ```
+   ## 판정: {WRITE | SKIP}
+   ## 근거
+   - 일관성: {assessment}
+   - 설명 가능성: {assessment}
+   - 예외 해석: {assessment}
+   - 투자 관점: {assessment}
+   ## 사유
+   {1-2 sentence rationale}
+   ```
+5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → log to `strategies/discarded/{name}.md`, report result to user, done.
 
-#### 5a. Create the team
-Use **TeamCreate** with a descriptive name:
+## CRYSTALLIZE
+
+Write the final strategy document in Obsidian-compatible format.
+
+1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 10-min timeout.
+2. **Researcher receives**: JUDGE rationale, OBSERVE phenomenon, LOOK case records (full), dataset path.
+3. **Output**: `.otterwise/strategies/{name}.md` -- must pass `validate-strategy.sh`:
+   - YAML frontmatter: `id` (YYYYMMDD_{8hex}), `type: seed` (always), `status: draft` (always), `phenomenon`, `researchMode`, `tags`, optional `observationPeriod` (include for time-series data, omit for snapshots)
+   - `## 관련 전략` -- "독립 전략 (seed)" (no existing graph)
+   - `## 현상` -- concise phenomenon with key numbers
+   - `## 가격 관찰` -- summary table + per-case `| 날짜 | 가격 | 이벤트 |` tables + `> [!data]-` callouts + `⚠️` exceptions
+   - `## 해석` -- analyst interpretation (not trading rules)
+   - `## 전략 아이디어` -- investment monitoring approach
+   - `## 한계 및 주의사항` -- limitations, sample size, exceptions
+4. Shutdown researcher, delete team. Report result to user.
+
+## Teams API Lifecycle (Per Phase)
+
+Each phase follows: **TeamCreate** (`"research-{YYYYMMDD-HHMMSS}-{phase}-{name}"`) → **TaskCreate** x K → **Agent** x K (ALL in one message, `general-purpose`, `bypassPermissions`, `run_in_background: true`) → **TaskList** poll (5-min intervals, phase-specific timeout; on timeout continue with available results) → **Read** outputs → **SendMessage** shutdown_request → **TeamDelete** (1 retry on failure).
+
+## State Management
+
+### Directory Structure
+
 ```
-team_name: "research-{YYYYMMDD-HHMMSS}-{short-topic}"
+.otterwise/
+  config.json                          ← dataset, goals, investmentMode
+  strategies/
+    {name}.md                          ← CRYSTALLIZE output
+    look/{name}.md                     ← LOOK case records
+    research-log/{name}-observe.md     ← OBSERVE phenomenon
+    research-log/{name}-judge.md       ← JUDGE decision
+    discarded/{name}.md                ← SKIP decisions
 ```
 
-#### 5b. Generate a node ID and create output directories
-Generate a node ID in the format `YYYYMMDD_HHMMSS_{8hex}_{name}` (where {8hex} is an 8-character hex hash and {name} is a short descriptive topic slug).
-Example: `20260325_143015_a1b2c3d4_한국주식시장분석`
-```bash
-mkdir -p .otterwise/nodes/{node-id}/researcher-{1,2,...}
-```
-
-#### 5c. Create tasks for tracking
-Use **TaskCreate** to create one task per teammate. Each task should:
-- Have a descriptive subject summarizing the teammate's objectives
-- Include the full objective bullet points in the description
-
-#### 5d. Spawn ALL teammates in a SINGLE message
-You MUST spawn all teammates in ONE message using multiple parallel **Agent** tool calls. This ensures they run concurrently.
-
-For each teammate, use the Agent tool with these exact parameters:
-- `subagent_type`: `"general-purpose"` (NOT "Explore" -- teammates need Write tools)
-- `team_name`: the team name from step 5a
-- `name`: `"researcher-N"` (e.g., `researcher-1`, `researcher-2`, etc.)
-- `mode`: `"bypassPermissions"`
-- `run_in_background`: `true`
-
-Each teammate's `prompt` MUST include ALL of the following:
-1. **Objectives**: Their assigned objective bullet points from step 4
-2. **Dataset path**: The full absolute path to the dataset
-3. **Task ID**: Their task ID from step 5c, with instruction to mark it completed via TaskUpdate
-4. **Team name**: The actual team name so they can use SendMessage
-5. **Teammate list**: Names of all teammates for cross-communication
-6. **Analysis approach**: Use built-in capabilities (Read files, Bash for scripting/computation, Grep for searching). No specific tools are prescribed -- researchers should use whatever approach works best for the analysis.
-7. **Output directory**: Full path to their output folder (`.otterwise/nodes/{node-id}/researcher-{K}/`)
-8. **Summary format**: Write `summary.md` using the format below
-9. **Instruction to send findings to team-lead via SendMessage when done**
-10. **Error escalation**: If an unrecoverable error occurs, send `RESEARCHER_ERROR: {description}` to team-lead via SendMessage before marking task completed
-
-### 6. Monitor Progress
-Poll **TaskList** periodically until ALL teammate tasks show status `completed`.
-- If a task is stuck, send a message to the teammate via SendMessage
-- If a teammate reports issues, provide guidance
-
-### 7. Collect and Synthesize Results
-After all teammates complete:
-- Read each teammate's `summary.md` from their output directory
-- Synthesize findings across all teammates
-- Identify agreements, conflicts, and gaps
-
-### 8. Write Report
-Create `report.md` in the node folder (`.otterwise/nodes/{node-id}/report.md`) with YAML frontmatter:
+### Strategy Frontmatter
 
 ```yaml
----
-id: "{YYYYMMDD_HHMMSS}_{8hex}_{name}"
-name: "{descriptive-kebab-case-name}"
-parentIds: []
-related: []
-dataset: "{dataset-path}"
-status: "completed"
-findings_count: {number}
----
+id: "YYYYMMDD_{8hex}"
+type: seed                             # always seed for research (no derive/explore/combine)
+status: draft                          # always draft (never skip to developing/established)
+phenomenon: "one-line description"
+researchMode: "mode_name"
+observationPeriod: "YYYY-YYYY"         # optional — include for time-series, omit for snapshots
+tags: [tag-1, tag-2]
 ```
 
-Report body structure:
-- Executive Summary (2-3 paragraphs)
-- Key Findings (with evidence and source references)
-- Dead Ends & Branch Points
-- Open Questions (candidates for child nodes)
+Relationships via `[[wikilinks]]` in `## 관련 전략`. All strategy content in Korean.
 
-### 9. Clean Up
-1. Send shutdown requests to all teammates via SendMessage
-2. Wait for shutdown confirmations
-3. Use **TeamDelete** to remove the team
-4. Report results to the user
+## Error Handling
 
-## Data-Driven Requirements
-All research must be evidence-based:
-1. Use WebSearch to validate key findings against published sources
-2. Use WebFetch to pull data from public APIs when applicable
-3. Every key finding in summary.md must include [source: URL]
-4. Confidence assessment:
-   - High: 2+ independent external sources confirm
-   - Medium: 1 external source confirms
-   - Low: Dataset analysis only -- mark with ⚠️
-5. Claims without external data backing are not acceptable for High/Medium confidence
-
-## Teammate Summary Format
-Each teammate writes `summary.md` in their output directory:
-
-```markdown
-# Investigation: [title]
-
-## Objective
-[Assigned bullet points]
-
-## Approach
-[How objectives were decomposed into steps]
-
-## Key Findings
-- Finding 1 [source: url]
-- Finding 2 [source: url]
-- [3-5 key results with specific numbers, each citing a source]
-
-## Sources
-| Source | URL | Accessed |
-|--------|-----|----------|
-
-## Confidence
-[High / Medium / Low] -- [justification per Data-Driven Requirements]
-
-## Dead Ends
-[What didn't work]
-
-## Suggested Follow-ups
-[1-3 directions for future exploration]
-```
+| Error | Action |
+|-------|--------|
+| TeamCreate fails | Retry once. If still fails, log to `error.log`, abort. |
+| >50% researchers fail | Continue with available results. Log warning. |
+| Dataset unavailable | Abort with message to user. |
+| Researcher crash (no output) | Log, exclude from synthesis. |
+| TeamDelete fails | Retry once. Log and continue. |
+| Phase timeout | Continue with available results, log warning. |
+| JUDGE returns SKIP | Log to `discarded/`, report to user, done. |
 
 ## Important Rules
-- You ARE the team lead -- never delegate team creation to a sub-agent
-- All prompts and analysis in English
-- Each research node is a folder in `.otterwise/nodes/`
-- Parent-child relationships tracked via report.md YAML frontmatter (`parentIds`)
-- Never duplicate analysis that's already been done (read previous reports!)
-- ID format: YYYYMMDD_HHMMSS_{8hex}_{name} (8-char hex hash + descriptive topic slug, e.g. `20260325_143015_a1b2c3d4_한국주식시장분석`)
-- Recommended team size: 3-5 teammates for most datasets
+
+- You are the team lead. Do NOT spawn a sub-agent to run the cycle.
+- One team per phase, destroyed after result collection.
+- All Agent calls in a single message for true parallel execution.
+- No implicit state sharing -- serialize all outputs to disk.
+- Strategy names use kebab-case. Strategy IDs: `YYYYMMDD_{8hex}`.
+- Research runs once -- no loop, no resume. Each invocation starts fresh.
+- No autopilot.json or autopilot-state.json -- research has no loop state.
+- All strategy content in Korean. Obsidian-compatible format (wikilinks, tags, callouts).

@@ -11,10 +11,11 @@ Autonomous investment strategy research platform for Claude Code.
 
 ## Key Conventions
 
-- Research is organized as a node-based graph structure (not sequential rounds)
-- Autopilot runs an infinite OLJC loop (OBSERVE → LOOK → JUDGE → CRYSTALLIZE → ROUTE) — no maxNodes limit, no FINALIZE phase; only user abort stops it
-- Safety guards in `scripts/validate-autopilot-state.sh` validate state file integrity
-- Version (currently 1.3.0) must stay consistent across `plugin.json` and `marketplace.json`
+- All research skills (research, continue, autopilot) use the OLJC methodology (OBSERVE → LOOK → JUDGE → CRYSTALLIZE)
+- Autopilot runs an infinite OLJC loop with ROUTE phase — no maxNodes limit, no FINALIZE phase; only user abort stops it
+- Research output goes to `.otterwise/strategies/` (strategy graph with Obsidian-compatible wikilinks)
+- Safety guards in `scripts/validate-state.sh` validate state file integrity
+- Version (currently 1.4.0) must stay consistent across `plugin.json` and `marketplace.json`
 - Marketplace install: `claude extension add cantsleep18/otterwise`
 - Plugin cache: `~/.claude/plugins/cache/cantsleep18-otterwise/` — delete and re-add to force clean install
 - Auto-update: `/otterwise:ow-setup` detects new versions, pulls, migrates config/cache, verifies

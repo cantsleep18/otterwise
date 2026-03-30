@@ -1,20 +1,28 @@
 {
   "$schema": "autopilot-config",
   "status": "running",
-  "maxConcurrentTeammates": 3,
-  "researchTimeoutMinutes": 30,
-  "explorationStrategy": "balanced",
-  "seedPhrase": "autopilot-20260323-143015",
+  "seedPhrase": "autopilot-20260330-100000",
   "scope": {
     "focusAreas": null,
-    "excludeTopics": null,
-    "depthLimit": 4
+    "excludeTopics": null
   },
   "notifications": {
     "progressUpdates": "per-node"
   },
-  "createdAt": "2026-03-23T14:30:15.000Z",
-  "totalNodes": 0,
-  "totalFindings": 0,
-  "nodes": []
+  "createdAt": "2026-03-30T10:00:00.000Z",
+  "strategies": [],
+  "modeStats": {
+    "brute_force": 0,
+    "news_replay": 0,
+    "condition_combo": 0,
+    "anomaly_detection": 0,
+    "copycat": 0,
+    "narrative_shift": 0,
+    "consensus_gap": 0,
+    "supply_chain": 0,
+    "regulatory": 0,
+    "behavioral": 0
+  },
+  "lastModes": [],
+  "cooldown": []
 }
