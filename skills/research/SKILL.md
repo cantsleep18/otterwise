@@ -59,6 +59,8 @@ Expansion type is always `seed` (new research, no existing graph). Pass routing 
 
 ## OBSERVE
 
+**Cycle ID** (generate before any file writes): `{id}` = `YYYYMMDD_HHMM_{8hex}` (current time + random hex, e.g. `20260401_1200_a1b2c3d4`). Choose kebab-case `{name}` for the topic (e.g. `earnings-surprise`). Use `{id}_{name}` consistently for artifact folder AND strategy file this cycle.
+
 Discover a phenomenon from data -- observation, not analysis. The goal is "어?" not "통계적 유의성".
 
 1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
