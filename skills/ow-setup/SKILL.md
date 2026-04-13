@@ -19,6 +19,34 @@ Three directories matter. **Always use absolute paths** in all commands.
 
 All git commands run inside `{PLUGIN}`. All research data lives inside `{PROJECT}/.otterwise/`. Skills and scripts execute from `{CACHE}`.
 
+## Data Scaffolding
+
+Create `{PROJECT}/data/` folder structure if it doesn't exist. If it already exists, skip silently.
+
+```bash
+mkdir -p {PROJECT}/data/prices
+mkdir -p {PROJECT}/data/sources
+```
+
+Write `{PROJECT}/data/README.md` only if the file doesn't exist:
+
+```markdown
+# Otterwise Data
+
+## prices/ (필수)
+가격 데이터를 넣어주세요. 포맷은 자유입니다 (CSV, Parquet, JSON 등).
+종가(close)와 익일 시가(open) 계산이 가능한 일봉 데이터가 필요합니다.
+
+## sources/ (선택)
+전략 재료 데이터를 넣어주세요. 뉴스, 공시, 수급, 재무, 대안데이터 등.
+포맷 제한 없음 — Claude가 읽고 해석합니다.
+```
+
+Report:
+- Folders exist: `PASS  Data folders ready (data/prices/, data/sources/)`
+- Folders created: `DONE  Data folders created (data/prices/, data/sources/)`
+- Check contents: if `data/prices/` is empty, `WARN  data/prices/ is empty — add price data before running research`
+
 ## Checks
 
 ### 1. Environment

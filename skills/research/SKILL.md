@@ -10,10 +10,13 @@ Run one 종가베팅 research cycle on a dataset. Discover a phenomenon (OBSERVE
 ## Usage
 
 ```
+/otterwise:research "Optional goals"
 /otterwise:research /path/to/prices "Optional goals" [/path/to/sources]
 ```
 
-Optional: specify research mode -- `/otterwise:research /path/to/prices "goals" mode=news_replay`. Default: auto-selected in ROUTE.
+If no paths given, defaults to `./data/prices` and `./data/sources` (created by `/otterwise:ow-setup`).
+
+Optional: specify research mode -- `/otterwise:research "goals" mode=news_replay`. Default: auto-selected in ROUTE.
 
 ## Workflow
 
@@ -26,7 +29,7 @@ INIT ──> ROUTE ──> OBSERVE ──> LOOK ──> JUDGE ──┬──> C
 
 ## Phase: INIT
 
-1. Parse user input: prices path (required), optional goals, optional sources path, optional mode override.
+1. Parse user input: prices path (optional, default `./data/prices`), optional goals, optional sources path (default `./data/sources`), optional mode override.
 2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/`.
 3. Write `config.json`:
    ```json

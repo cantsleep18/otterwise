@@ -10,9 +10,11 @@ Run a fully autonomous 종가베팅 research loop. Each cycle discovers an event
 ## Usage
 
 ```
+/otterwise:autopilot "Optional investment goals"
 /otterwise:autopilot /path/to/prices "Optional investment goals" [/path/to/sources]
 ```
 
+If no paths given, defaults to `./data/prices` and `./data/sources` (created by `/otterwise:ow-setup`).
 Re-running on an existing `.otterwise/` directory resumes from current state.
 
 ## Workflow
@@ -34,7 +36,7 @@ Before each phase, read `autopilot-state.json`:
 
 ## Phase: INIT (no existing strategies)
 
-1. Parse user input: prices path (required), optional goals, optional sources path.
+1. Parse user input: prices path (optional, default `./data/prices`), optional goals, optional sources path (default `./data/sources`).
 2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/`.
 3. Write `config.json`:
    ```json
