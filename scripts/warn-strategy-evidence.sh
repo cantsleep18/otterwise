@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # warn-strategy-evidence.sh
-# PostToolUse hook (Write): warns if a strategy .md lacks data evidence.
-# Checks for data tables, source callouts, and case sections.
+# PostToolUse hook (Write): warns if a strategy .md lacks backtest evidence.
+# Checks for overnight return tables, aggregate metrics, and event counts.
 # This is advisory only — always exits 0 so it never blocks.
 
 FILE_PATH="${TOOL_INPUT_file_path:-}"
@@ -17,19 +17,19 @@ fi
 
 WARNINGS=()
 
-# Check for data tables (markdown table syntax: | col | col |)
-if ! grep -q '|.*|.*|' "$FILE_PATH"; then
-  WARNINGS+=("No data tables found. Strategy should include date/price/event tables.")
+# Check for overnight return table (6+ column table with 종가/익일시가 headers)
+if ! grep -qE '\|.*종가.*익일시가.*\|' "$FILE_PATH" && ! grep -qE '\|.*\|.*\|.*\|.*\|.*\|' "$FILE_PATH"; then
+  WARNINGS+=("No overnight return table found. Strategy should include 날짜|종목|이벤트|종가|익일시가|수익률 table.")
 fi
 
-# Check for source callouts (> [!data] format)
-if ! grep -q '> \[!data\]' "$FILE_PATH"; then
-  WARNINGS+=("No source callouts found. Add '> [!data]- 원본 데이터' callouts.")
+# Check for aggregate metrics (profit_factor or PF)
+if ! grep -qi 'profit_factor\|PF' "$FILE_PATH"; then
+  WARNINGS+=("No aggregate metrics found. Add profit_factor/PF to 집계 section.")
 fi
 
-# Check for case sections (### 사례 N:)
-if ! grep -qE '^### (⚠️ )?사례 [0-9]+' "$FILE_PATH"; then
-  WARNINGS+=("No case sections found. Add '### 사례 N: 종목명 (시기)' sections.")
+# Check for event count (총 N회 pattern)
+if ! grep -qE '총.*회' "$FILE_PATH"; then
+  WARNINGS+=("No event count found. Add '총 N회' to 집계 section.")
 fi
 
 if [ ${#WARNINGS[@]} -gt 0 ]; then

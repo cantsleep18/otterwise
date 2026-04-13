@@ -1,9 +1,12 @@
 {
-  "dataset": "/mnt/c/Allround/otterwise/tests/fixtures/sample-dataset.csv",
-  "goals": [
-    "Analyze revenue trends by category and region",
-    "Identify key factors driving customer satisfaction",
-    "Detect anomalies or missing data patterns"
-  ],
-  "created": "2025-01-25T10:30:00.000Z"
+  "dataset": {
+    "prices": "/path/to/prices/",
+    "sources": "/path/to/sources/"
+  },
+  "goals": "종가베팅 전략 발굴",
+  "investmentMode": true,
+  "fee": {
+    "stock_pct": 0.24,
+    "etf_pct": 0.04
+  }
 }

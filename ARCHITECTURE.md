@@ -1,10 +1,10 @@
 # Otterwise Architecture
 
-Autonomous compound research platform for Claude Code marketplace.
+종가베팅 strategy research platform for Claude Code marketplace.
 
 ## Overview
 
-Otterwise is a plugin that spawns agent teams to conduct autonomous investment research. It runs as a Claude Code extension with support for seamless auto-updates through git-based versioning. The core loop is OLJC (Observe, Look, Judge, Crystallize) — an infinite cycle that discovers market phenomena, verifies them against price data, and crystallizes findings into strategy documents.
+Otterwise is a plugin that spawns agent teams to conduct autonomous 종가베팅 research. It runs as a Claude Code extension with support for seamless auto-updates through git-based versioning. The core loop is OLJC (Observe, Look, Judge, Crystallize) -- an infinite cycle that discovers market events, backtests overnight returns (buy at close, sell at next open), and crystallizes findings into strategy documents when the numbers pass quantitative gates.
 
 ## Directory Structure
 
@@ -14,10 +14,10 @@ otterwise/
 │   ├── plugin.json              # Skill definitions (canonical version source)
 │   └── marketplace.json         # Marketplace metadata (synced from plugin.json)
 ├── skills/                      # User-facing capabilities
-│   ├── research/                # Start new research session
-│   ├── continue/                # Expand existing session
-│   ├── status/                  # Show session state
-│   ├── autopilot/               # Run autonomous OLJC loop
+│   ├── research/                # Start new research session (single OLJC cycle)
+│   ├── continue/                # Expand existing session (graph expansion)
+│   ├── status/                  # Show strategy graph with PF/win-rate
+│   ├── autopilot/               # Run autonomous OLJC loop (infinite)
 │   ├── autopilot-pause/         # Pause/resume autopilot
 │   ├── autopilot-abort/         # Stop autopilot
 │   └── ow-setup/                # Setup, diagnose, update plugin
@@ -25,13 +25,12 @@ otterwise/
 │   └── hooks.json               # PostToolUse validation hooks
 ├── scripts/                     # Utilities (called from ow-setup)
 │   ├── secure-update.sh         # Security checks for updates
-│   ├── migrate.sh               # Schema migration for user data
-│   ├── migrate-to-investment.sh # Migration to investment mode
+│   ├── migrate.sh               # Schema migration for user data (includes v1.4→v1.5)
 │   ├── version-sync.sh          # Version consistency checker
 │   ├── check-version-sync.sh    # CI script to verify versions
-│   ├── validate-strategy.sh        # Hook: validate strategy .md format
-│   ├── warn-strategy-evidence.sh   # Hook: warn on missing data evidence
-│   └── validate-state.sh            # Hook: validate state file integrity
+│   ├── validate-strategy.sh     # Hook: validate strategy .md format (backtest fields)
+│   ├── warn-strategy-evidence.sh # Hook: warn on missing overnight-return evidence
+│   └── validate-state.sh        # Hook: validate state file integrity
 ├── tests/                       # Integration tests
 ├── settings.json                # Tool permissions (empty, no MCP tools)
 ├── .mcp.json                    # MCP server config (empty, REPL removed)
@@ -45,11 +44,11 @@ otterwise/
 
 ### Fresh Install
 
-User runs: `claude extension add otterwise`
+User runs: `claude extension add cantsleep18/otterwise`
 
 Claude Code:
 1. Downloads plugin from marketplace (official registry or GitHub release)
-2. Extracts to `~/.claude/plugins/cache/otterwise/otterwise/{version}/`
+2. Extracts to `~/.claude/plugins/cache/cantsleep18-otterwise/{version}/`
 3. Parses `.claude-plugin/plugin.json` to discover skills
 4. Creates `~/.claude/plugins/data/otterwise-otterwise/` for user state
 5. Loads settings.json (permissions)
@@ -60,7 +59,7 @@ Claude Code:
 
 **Plugin code (read-only in session):**
 ```
-~/.claude/plugins/cache/otterwise/otterwise/1.4.0/
+~/.claude/plugins/cache/cantsleep18-otterwise/
 ├── .claude-plugin/
 ├── skills/
 ├── hooks/
@@ -71,18 +70,20 @@ Claude Code:
 **User data (persists across updates):**
 ```
 ~/.claude/plugins/data/otterwise-otterwise/
-└── .otterwise/                 # May be symlinked to project's .otterwise
-    ├── config.json             # Research session graph config
-    ├── autopilot.json          # Autopilot session state
+└── .otterwise/
+    ├── config.json             # Research session config (dataset, fee, goals)
+    ├── autopilot.json          # Autopilot session state (strategies + backtest summaries)
     ├── autopilot-state.json    # Control signal (pause/abort/play)
     ├── update-check.json       # Cached version info (1-hour TTL)
-    ├── strategies/             # OLJC output — Obsidian vault (.md files with wikilinks)
-    │   └── {YYYYMMDD_HHMM}_{8hex}_{name}.md  # Strategy documents (graph nodes)
-    └── artifacts/              # Per-cycle intermediate outputs
-        └── {id}_{name}/        # One folder per OLJC cycle
-            ├── 01_discovery.md   # OBSERVE phase findings
-            ├── 02_evidence.md    # LOOK phase case records
-            └── 03_evaluation.md  # JUDGE phase decision (WRITE or SKIP)
+    ├── strategies/             # OLJC output -- Obsidian vault (.md files with wikilinks)
+    │   └── {YYYYMMDD_HHMM}_{8hex}_{name}.md  # Strategy documents with backtest
+    ├── artifacts/              # Per-cycle intermediate outputs
+    │   └── {id}_{name}/
+    │       ├── 01_discovery.md   # OBSERVE: event + 종가베팅 가설
+    │       ├── 02_evidence.md    # LOOK: event table + overnight returns + aggregates
+    │       └── 03_evaluation.md  # JUDGE: quantitative gates + WRITE/SKIP
+    └── archive/                # Archived strategies from previous versions
+        └── v1.4/               # v1.4 strategies (incompatible format)
 ```
 
 ## OLJC Loop
@@ -97,13 +98,27 @@ OBSERVE → LOOK → JUDGE → CRYSTALLIZE → ROUTE → OBSERVE ...
 
 | Phase | What happens | Teams API |
 |-------|-------------|-----------|
-| OBSERVE | Read data, discover interesting phenomena | 1 researcher |
-| LOOK | Find historical cases, verify against price data | K researchers (parallel) |
-| JUDGE | Team lead decides WRITE or SKIP — no agent spawn | None |
-| CRYSTALLIZE | Write strategy document (.md) from observations | 1 researcher |
-| ROUTE | Adaptive router picks next research mode and expansion type | None |
+| OBSERVE | Read data, discover events that might work for 종가베팅 | 1 researcher |
+| LOOK | Mark event dates, calculate overnight returns (close→next open), aggregate metrics | K researchers (parallel) |
+| JUDGE | Quantitative gates: PF > 1.5, positive after fees, sufficient trades → WRITE or SKIP | None (team lead) |
+| CRYSTALLIZE | Write strategy document with backtest results | 1 researcher |
+| ROUTE | Adaptive router picks next research mode and expansion type | None (team lead) |
 
-Output: `.otterwise/strategies/{YYYYMMDD_HHMM}_{8hex}_{name}.md` — Obsidian-compatible files with wikilinks, tags, and Dataview frontmatter. Each strategy is a graph node; `[[wikilinks]]` form edges. Per-cycle intermediate outputs go to `.otterwise/artifacts/{id}_{name}/` with numbered phase prefixes.
+Output: `.otterwise/strategies/{YYYYMMDD_HHMM}_{8hex}_{name}.md` -- Obsidian-compatible files with wikilinks, tags, and Dataview frontmatter. Each strategy is a graph node; `[[wikilinks]]` form edges.
+
+### Fee Model
+
+- Stock: 0.24% round-trip (거래세 0.20% + 수수료) -- configurable in `config.json` `fee.stock_pct`
+- ETF: 0.04% round-trip -- configurable in `config.json` `fee.etf_pct`
+- Gross return: `(next_open - close) / close`
+- Net return: `gross - fee_pct/100`
+
+### JUDGE Gates
+
+All must pass for WRITE:
+1. `profit_factor > 1.5`
+2. `avg_return_pct > 0` (positive after fees)
+3. Sufficient trades (>=10 preferred, team lead judgment for rare events)
 
 ### Strategy Types
 
@@ -114,6 +129,30 @@ Output: `.otterwise/strategies/{YYYYMMDD_HHMM}_{8hex}_{name}.md` — Obsidian-co
 | `explore` | Inspired by existing findings, different domain |
 | `combine` | Merges insights from multiple strategies |
 
+## Data Configuration
+
+### config.json
+
+```json
+{
+  "dataset": {
+    "prices": "/absolute/path/to/prices/",
+    "sources": "/absolute/path/to/sources/"
+  },
+  "goals": "종가베팅 전략 발굴",
+  "investmentMode": true,
+  "fee": {
+    "stock_pct": 0.24,
+    "etf_pct": 0.04
+  },
+  "sectors": {
+    "반도체": ["005930", "000660"]
+  }
+}
+```
+
+No data format enforcement -- Claude reads whatever format is in the prices/sources directories.
+
 ## Plugin Lifecycle
 
 ### Normal Operation
@@ -121,9 +160,9 @@ Output: `.otterwise/strategies/{YYYYMMDD_HHMM}_{8hex}_{name}.md` — Obsidian-co
 1. User invokes skill: `/otterwise:research`
 2. Claude Code loads `.claude-plugin/plugin.json` from cache
 3. Finds skill path: `skills/research`
-4. Executes skill (shell/Python script with access to ${CLAUDE_PLUGIN_ROOT})
+4. Executes skill
 5. Skill accesses user data in `~/.claude/plugins/data/otterwise-otterwise/`
-6. On tool use (TaskUpdate, Write), hooks trigger validation scripts
+6. On tool use (Write), hooks trigger validation scripts
 
 ### PostToolUse Hooks
 
@@ -143,179 +182,38 @@ Hooks run after specific tools to validate state without modifying tool behavior
 - Used by ow-setup during update detection
 - Synced to `marketplace.json` by `version-sync.sh`
 
-```json
-{
-  "name": "otterwise",
-  "version": "1.3.0",
-  "skills": [ ... ]
-}
-```
-
 ## Auto-Update Flow
 
 ### Detection (ow-setup skill)
 
-1. Verify git repo present at plugin install location (usually cloned from GitHub)
+1. Verify git repo present at plugin install location
 2. Load `.otterwise/update-check.json` (cached, 1-hour TTL)
-3. If cache fresh, show cached result
-4. If stale, run:
-   - `git fetch origin main`
-   - Compare local `.claude-plugin/plugin.json` version vs remote
-   - `git rev-list HEAD..origin/main --count` (commits behind)
-   - Cache result with timestamp
-
-### Pre-Update Checks (scripts/secure-update.sh pre-update)
-
-Before pulling, validate:
-- Remote origin matches canonical repo (github.com/cantsleep18/otterwise)
-- History is fast-forward-able (no divergence)
-- Backup current config to `.otterwise/update-backup/{timestamp}`
-
-Abort if security checks fail.
+3. If stale, `git fetch origin main` and compare versions
+4. Cache result with timestamp
 
 ### Update Execution
 
-1. `git pull origin main --ff-only` (only accept fast-forward)
-2. `bash scripts/secure-update.sh post-update` (validate pulled files)
-3. `bash scripts/migrate.sh` (upgrade user data schemas)
-4. Clear plugin cache: `rm -rf ~/.claude/plugins/cache/otterwise/`
-5. User must restart Claude Code to load new version
+1. Pre-update security checks (`scripts/secure-update.sh pre-update`)
+2. `git pull origin main --ff-only` (fast-forward only)
+3. Post-update validation (`scripts/secure-update.sh post-update`)
+4. Migration (`scripts/migrate.sh` -- includes v1.4→v1.5)
+5. Clear plugin cache
+6. User must restart Claude Code to load new version
 
-### Post-Update Checks (scripts/secure-update.sh post-update)
+### v1.4 → v1.5 Migration
 
-After pulling, validate:
-- No unexpected files added (only .sh files in scripts/)
-- No unauthorized permissions in settings.json
-- No dangerous hooks patterns
-- No secrets leaked (.env files, API keys, tokens)
-
-Rollback if validation fails.
-
-### Migration (scripts/migrate.sh)
-
-After git pull, reconcile config changes:
-- Merge settings.json (preserve user customizations, validate permissions)
-- Merge hooks.json (ensure all required matchers present)
-- Validate schema version of user data files (config.json, autopilot.json, autopilot-state.json)
-- Upgrade schema if needed (v1 → v2, etc.)
-- Back up old schemas before upgrading
-- Skip if files don't exist
-
-### Rollback
-
-If any phase fails after git pull:
-```bash
-git reset --hard $PRE_UPDATE_SHA    # Discard pulled commits
-rm -rf ~/.claude/plugins/cache/otterwise/  # Remove any cache marker
-# Restore from backup if needed
-```
-
-User can retry update later.
-
-## Data Persistence
-
-User session data lives in `~/.claude/plugins/data/otterwise-otterwise/` and survives plugin updates because it's stored separately from the cache.
-
-### config.json (Research Session Graph)
-
-Schema v2:
-```json
-{
-  "schemaVersion": 2,
-  "pluginVersion": "1.3.0",
-  "sessionId": "...",
-  "nodes": [
-    { "id": "node1", "type": "seed", "title": "...", ... }
-  ],
-  "edges": [ ... ]
-}
-```
-
-- Additive schema: new fields added, old preserved
-- `nodes` array is append-only: never delete nodes, only add
-- Node types: `seed`, `derive`, `explore`, `combine` (strategy expansion types)
-- `schemaVersion` incremented when structure changes
-- `pluginVersion` records which plugin version created/updated the file
-
-### autopilot.json (Autopilot Session)
-
-Schema v2: autopilot configuration, node selections, loop settings.
-
-### autopilot-state.json (Runtime Control)
-
-Schema v2: current command (play/pause/abort), updatedAt timestamp, reason.
-
-### update-check.json (Version Cache)
-
-Not a user data file — transient cache cleared on update:
-```json
-{
-  "checked": 1774361915235,           # Timestamp (ms)
-  "localVersion": "1.2.0",
-  "remoteVersion": "1.3.0",
-  "commitsBehind": 3,
-  "commits": [
-    { "sha": "abc1234", "message": "Fix node selection" }
-  ]
-}
-```
-
-TTL: 1 hour. If `now - checked > 3600000`, re-check.
+- Old strategies archived to `.otterwise/archive/v1.4/` (not deleted)
+- config.json migrated: flat `dataset` string → `{ prices, sources }` object, `fee` block added
+- autopilot.json strategies cleared (format incompatible)
+- Old artifacts deleted
 
 ## Security Model
 
-### Pre-Update: Source Verification
-
-```bash
-# Must match canonical repo
-EXPECTED_REMOTE="https://github.com/cantsleep18/otterwise.git"
-EXPECTED_REMOTE_SSH="git@github.com:cantsleep18/otterwise.git"
-```
-
-### Integrity: Fast-Forward Only
-
-```bash
-git pull origin main --ff-only    # Abort if not FF-mergeable
-```
-
-Prevents force pulls and history rewrites.
-
-### Hook Safety: Whitelist
-
-Hooks allowed to reference only:
-- `scripts/validate-state.sh`
-- `scripts/validate-strategy.sh`
-- `scripts/warn-strategy-evidence.sh`
-
-Any other command patterns rejected (curl, eval, bash -c, etc.).
-
-### File Scanning: No Scripts Outside scripts/
-
-New files added by update checked:
-- Shell scripts must be in `scripts/` directory only
-- No .env, .secret, credential files
-- No binaries
-
-### Secret Detection
-
-Config files scanned for patterns:
-- API keys: `AKIA*`, `sk-*`
-- Tokens: `ghp_*`, `bearer *`
-- Private keys: `PRIVATE KEY`, `private_key`
-
-### Rollback: Timestamped Backups
-
-```
-.otterwise/update-backup/20260324T231800Z/
-├── .claude-plugin/plugin.json
-├── .claude-plugin/marketplace.json
-├── .mcp.json
-├── hooks/hooks.json
-├── settings.json
-└── HEAD_SHA
-```
-
-Keeps last 5 backups; oldest pruned when 6th created.
+- Source verification: remote origin must match canonical repo
+- Fast-forward only pulls (no force-rebase)
+- Hook command whitelist (only scripts/ directory)
+- File scanning: no scripts outside scripts/, no secrets
+- Timestamped backups before each update (last 5 kept)
 
 ## Version Consistency
 
@@ -325,130 +223,12 @@ Three version fields must always match:
 2. `.claude-plugin/marketplace.json` `.metadata.version`
 3. `.claude-plugin/marketplace.json` `.plugins[0].version`
 
-Script to sync:
-```bash
-bash scripts/version-sync.sh 1.3.0
-```
-
-ow-setup checks all three and auto-fixes if mismatch detected.
-
-## Skill Interface
-
-Each skill is a directory with:
-
-```
-skills/{name}/
-├── SKILL.md           # Frontmatter + description (required)
-└── [implementation]   # exec, run, or code
-```
-
-### SKILL.md Format
-
-```markdown
----
-name: research
-description: Start a new Otterwise research session on a dataset
----
-
-[Implementation details...]
-```
-
-Frontmatter (YAML) is validated by ow-setup:
-- `name` field required
-- `description` field required
-- Must be valid YAML
-
-### Environment Variables Available
-
-- `${CLAUDE_PLUGIN_ROOT}` — Plugin root directory (e.g., ~/.claude/plugins/cache/otterwise/otterwise/1.3.0)
-- `${CLAUDE_SESSION_ID}` — Current session ID
-- Standard shell variables (USER, PWD, etc.)
-
-## MCP & Tool Permissions
-
-The Python REPL MCP server was removed after v1.2.0. Claude Code runs Python via skill execution, not MCP.
-
-**Config (.mcp.json):**
-```json
-{
-  "mcpServers": {}
-}
-```
-
-**Tool Permissions (settings.json):**
-```json
-{
-  "permissions": {
-    "allow": []
-  }
-}
-```
-
-No MCP tools are exposed. The `settings.json` permissions list is empty.
-
-## Build & Release
-
-### Version Bump
-
-```bash
-./scripts/version-sync.sh 1.4.0
-git add .claude-plugin/
-git commit -m "Bump version to 1.4.0"
-git push origin main
-```
-
-### Publish to Marketplace
-
-1. Push git tag: `git tag v1.4.0 && git push origin v1.4.0`
-2. Submit to Anthropic marketplace (process TBD)
+Script to sync: `bash scripts/version-sync.sh 1.5.0`
 
 ## Testing
-
-### Integration Tests
 
 ```bash
 npm test -- --run
 ```
 
-Tests validate:
-- Skill discovery from plugin.json
-- Hook registration
-- Update flow simulation
-- Migration logic
-- Version consistency
-
-### Manual Testing
-
-1. Install from marketplace: `claude extension add otterwise`
-2. Run diagnostic: `/otterwise:ow-setup`
-3. Clone repo and test auto-update: `git clone https://github.com/cantsleep18/otterwise.git && /otterwise:ow-setup`
-
-## Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `.claude-plugin/plugin.json` | Skill definitions, canonical version |
-| `.claude-plugin/marketplace.json` | Marketplace metadata |
-| `scripts/secure-update.sh` | Update security validation |
-| `scripts/migrate.sh` | User data schema migration |
-| `scripts/version-sync.sh` | Version consistency |
-| `hooks/hooks.json` | PostToolUse event handlers |
-| `settings.json` | MCP tool permissions |
-| `.mcp.json` | MCP server config |
-| `skills/ow-setup/SKILL.md` | Update detection & execution |
-
-## Development Guidelines
-
-- **Always update all three version fields together** (plugin.json, marketplace.json metadata & plugins)
-- **Never delete user data** (append-only semantics for nodes array)
-- **Always backup before migrating schema** (migrate.sh does this automatically)
-- **Fast-forward only pulls** (no force-rebase during updates)
-- **Whitelist hook commands** (no arbitrary execution)
-- **Test in marketplace context** (install via extension add, not git clone)
-
-## Future Improvements
-
-- Marketplace auto-update without manual git clone (once marketplace plugin updates work)
-- Strategy lifecycle management (draft → developing → established → archived)
-- Incremental sync (download only changed files, not entire version)
-- User preference for update timing (auto, manual, ask)
+Tests validate skill discovery, hook registration, update flow, migration logic, and version consistency.

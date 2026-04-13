@@ -58,6 +58,10 @@ if ! echo "$FRONTMATTER" | grep -q '^tags:'; then
   MISSING_FM+=("tags")
 fi
 
+if ! echo "$FRONTMATTER" | grep -q '^backtest:'; then
+  MISSING_FM+=("backtest")
+fi
+
 if [ ${#MISSING_FM[@]} -gt 0 ]; then
   echo "ERROR: $FILE_PATH frontmatter is missing required fields:"
   for field in "${MISSING_FM[@]}"; do
@@ -80,6 +84,48 @@ if [[ "$STATUS_VAL" != *draft* ]] && [[ "$STATUS_VAL" != *developing* ]] && [[ "
   exit 1
 fi
 
+# --- Backtest sub-field validation ---
+# Extract the backtest block from frontmatter (indented lines after backtest:)
+BACKTEST_BLOCK=$(echo "$FRONTMATTER" | sed -n '/^backtest:/,/^[^ ]/p' | tail -n +2 | grep '^ ')
+
+MISSING_BT=()
+INVALID_BT=()
+
+# Fields that must exist (no numeric check)
+for field in tickers period; do
+  if ! echo "$BACKTEST_BLOCK" | grep -q "^  ${field}:"; then
+    MISSING_BT+=("backtest.$field")
+  fi
+done
+
+# Fields that must exist and be numeric
+for field in trades winners losers win_rate_pct avg_return_pct profit_factor max_consecutive_losses fee_applied_pct; do
+  if ! echo "$BACKTEST_BLOCK" | grep -q "^  ${field}:"; then
+    MISSING_BT+=("backtest.$field")
+  else
+    VAL=$(echo "$BACKTEST_BLOCK" | grep "^  ${field}:" | sed 's/^  '"${field}"':\s*//')
+    if ! echo "$VAL" | grep -qE '^-?[0-9]+\.?[0-9]*$'; then
+      INVALID_BT+=("backtest.$field (got '$VAL', expected numeric)")
+    fi
+  fi
+done
+
+if [ ${#MISSING_BT[@]} -gt 0 ]; then
+  echo "ERROR: $FILE_PATH backtest block is missing required fields:"
+  for field in "${MISSING_BT[@]}"; do
+    echo "  - $field"
+  done
+  exit 1
+fi
+
+if [ ${#INVALID_BT[@]} -gt 0 ]; then
+  echo "ERROR: $FILE_PATH backtest block has non-numeric fields:"
+  for field in "${INVALID_BT[@]}"; do
+    echo "  - $field"
+  done
+  exit 1
+fi
+
 # --- Required body sections ---
 MISSING_SECTIONS=()
 
@@ -87,16 +133,16 @@ if ! grep -q '^## 현상' "$FILE_PATH"; then
   MISSING_SECTIONS+=("## 현상")
 fi
 
-if ! grep -q '^## 가격 관찰' "$FILE_PATH"; then
-  MISSING_SECTIONS+=("## 가격 관찰")
+if ! grep -q '^## 이벤트 발생일 및 종가베팅 결과' "$FILE_PATH"; then
+  MISSING_SECTIONS+=("## 이벤트 발생일 및 종가베팅 결과")
+fi
+
+if ! grep -q '^## 집계' "$FILE_PATH"; then
+  MISSING_SECTIONS+=("## 집계")
 fi
 
 if ! grep -q '^## 해석' "$FILE_PATH"; then
   MISSING_SECTIONS+=("## 해석")
-fi
-
-if ! grep -q '^## 전략 아이디어' "$FILE_PATH"; then
-  MISSING_SECTIONS+=("## 전략 아이디어")
 fi
 
 if ! grep -q '^## 한계 및 주의사항' "$FILE_PATH"; then

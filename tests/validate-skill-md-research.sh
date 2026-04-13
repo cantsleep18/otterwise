@@ -65,9 +65,9 @@ echo "=== 2. Strategy Template Sections ==="
 STRATEGY_SECTIONS=(
   "관련 전략"
   "현상"
-  "가격 관찰"
+  "이벤트 발생일 및 종가베팅 결과"
+  "집계"
   "해석"
-  "전략 아이디어"
   "한계 및 주의사항"
 )
 
@@ -80,7 +80,7 @@ for section in "${STRATEGY_SECTIONS[@]}"; do
 done
 
 # Check strategy frontmatter fields are documented
-STRATEGY_FM_FIELDS=("id" "type" "status" "phenomenon" "researchMode" "tags")
+STRATEGY_FM_FIELDS=("id" "type" "status" "phenomenon" "researchMode" "tags" "backtest")
 
 for field in "${STRATEGY_FM_FIELDS[@]}"; do
   if grep -q "$field" "$SKILL_FILE"; then
@@ -174,15 +174,21 @@ for op in "${TEAMS_OPS[@]}"; do
   fi
 done
 
-# ── 6. Data Evidence Rules ───────────────────────────────────────
+# ── 6. Backtest Evidence Rules ──────────────────────────────────
 
 echo ""
-echo "=== 6. Data Evidence Rules ==="
+echo "=== 6. Backtest Evidence Rules ==="
 
-if grep -q '\[!data\]' "$SKILL_FILE"; then
-  pass "Data callout syntax [!data] documented"
+if grep -q 'profit_factor\|PF' "$SKILL_FILE"; then
+  pass "Backtest metric profit_factor/PF referenced"
 else
-  fail "Data callout syntax [!data] missing"
+  fail "Backtest metric profit_factor/PF missing"
+fi
+
+if grep -q 'fee_applied_pct\|fee_pct\|fee' "$SKILL_FILE"; then
+  pass "Fee model referenced"
+else
+  fail "Fee model missing"
 fi
 
 # ── 7. Artifact Structure ──────────────────────────────────────

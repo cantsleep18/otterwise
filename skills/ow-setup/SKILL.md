@@ -161,13 +161,13 @@ Environment
 Plugin Configuration
   PASS  plugin.json valid
   PASS  hooks.json valid (3 hooks, all scripts verified)
-  PASS  All version files in sync (v1.4.0)
+  PASS  All version files in sync (v1.5.0)
   PASS  All skills registered (7 skills)
 
 Updates
   PASS  Git repo clean
   PASS  Origin verified (github.com/cantsleep18/otterwise)
-  PASS  Up to date (v1.4.0)
+  PASS  Up to date (v1.5.0)
 
 ────────────────────────────────────────
 Summary: 9 PASS | 0 WARN | 0 FAIL
@@ -180,17 +180,17 @@ Status: Ready to use
 Updates
   PASS  Git repo clean
   PASS  Origin verified (github.com/cantsleep18/otterwise)
-  UPDATE  3 commits behind (v1.3.0 → v1.4.0)
+  UPDATE  3 commits behind (v1.4.0 → v1.5.0)
     |- abc1234 Add new research capability
     |- def5678 Fix autopilot node selection
   DONE  Pulled 3 commits (ff-only)
   DONE  Security post-check passed
   DONE  Migration complete
   DONE  Cache cleared (~/.claude/plugins/cache/otterwise/)
-  PASS  Re-verified: all checks pass on v1.4.0
+  PASS  Re-verified: all checks pass on v1.5.0
 
 ────────────────────────────────────────
-Updated from v1.3.0 to v1.4.0. Cache cleared.
+Updated from v1.4.0 to v1.5.0. Cache cleared.
 ⚠ Restart your Claude Code session to load the new version.
 ```
 

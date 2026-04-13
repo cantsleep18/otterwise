@@ -1,7 +1,7 @@
 {
   "name": "otterwise",
-  "description": "Autonomous compound research platform — spawns agent teams to discover investment strategies through data-driven observation",
-  "version": "1.4.0",
+  "description": "종가베팅 strategy research platform — discovers overnight-return opportunities through event-driven backtesting",
+  "version": "1.5.0",
   "author": {
     "name": "cantsleep18"
   },
@@ -10,10 +10,10 @@
   "license": "MIT",
   "keywords": [
     "research",
-    "data-science",
-    "multi-agent",
-    "analysis",
     "investment",
-    "strategy"
+    "strategy",
+    "backtest",
+    "multi-agent",
+    "종가베팅"
   ]
 }

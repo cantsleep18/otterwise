@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-04-13
+
+### Changed
+- Pivoted to 종가베팅 (overnight-return) strategy research — buy at close, sell at next open
+- LOOK phase now performs mechanical backtest: mark event dates, calculate overnight returns, aggregate metrics
+- JUDGE phase uses quantitative gates (profit_factor > 1.5, positive after fees, sufficient trades) instead of qualitative criteria
+- Strategy body format: `## 가격 관찰` → `## 이벤트 발생일 및 종가베팅 결과`, added `## 집계`, removed `## 전략 아이디어`
+- Strategy frontmatter: added `backtest:` block (tickers, period, trades, winners, losers, win_rate_pct, avg_return_pct, profit_factor, max_consecutive_losses, fee_applied_pct), removed `dataUsed` and `observationPeriod`
+- Fee model integrated: stock 0.24% round-trip, ETF 0.04% round-trip (configurable in config.json)
+- config.json schema: `dataset` changed from flat string to `{ prices, sources }` object, added `fee` block
+- Validation scripts updated for new strategy format and backtest fields
+
+### Removed
+- v1.4 strategies discarded (archived to `.otterwise/archive/v1.4/` on migration)
+- Case sections (`### 사례 N:`) and `> [!data]-` callouts removed from strategy body
+- `## 전략 아이디어` section removed — the phenomenon IS the strategy
+
 ## [1.4.0] - 2026-03-30
 
 ### Changed

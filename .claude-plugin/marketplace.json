@@ -4,27 +4,25 @@
     "name": "cantsleep18"
   },
   "metadata": {
-    "description": "Autonomous compound research platform for Claude Code",
-    "version": "1.4.0"
+    "description": "종가베팅 strategy research platform for Claude Code",
+    "version": "1.5.0"
   },
   "plugins": [
     {
       "name": "otterwise",
       "source": "./",
-      "description": "Autonomous compound research platform with auto-update — spawns agent teams to discover investment strategies through data-driven observation. Includes setup diagnostics and seamless self-updating.",
-      "version": "1.4.0",
+      "description": "종가베팅 strategy research platform — discovers overnight-return opportunities through event-driven backtesting with multi-agent teams",
+      "version": "1.5.0",
       "category": "productivity",
       "tags": [
         "research",
-        "data-science",
+        "investment",
+        "strategy",
+        "backtest",
         "multi-agent",
-        "analysis",
         "autopilot",
         "auto-update",
-        "setup",
-        "diagnostics",
-        "investment",
-        "strategy"
+        "종가베팅"
       ]
     }
   ]

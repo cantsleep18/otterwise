@@ -926,6 +926,120 @@ migrate_artifacts_to_per_cycle() {
   fi
 }
 
+# --- 5d. Version migration: 1.4.0 → 1.5.0 ---------------------------------
+#
+# Handles the strategy-node → 종가베팅 redesign:
+#   - Archive old v1.4 strategies (format incompatible)
+#   - Update config.json: flat dataset string → {prices, sources} object, add fee block
+#   - Clear autopilot.json strategies (format incompatible)
+#   - Clear old artifacts (intermediate outputs, not valuable)
+
+migrate_v140_to_v150() {
+  heading "Version Migration (1.4.0 → 1.5.0)"
+
+  local OTTERWISE_DIR="$PLUGIN_ROOT/.otterwise"
+  if [ ! -d "$OTTERWISE_DIR" ]; then
+    info "No .otterwise/ directory found, skipping"
+    return
+  fi
+
+  need jq || return
+
+  # 1. Archive old strategies (v1.4 format is incompatible with v1.5)
+  local STRATEGIES_DIR="$OTTERWISE_DIR/strategies"
+  if [ -d "$STRATEGIES_DIR" ]; then
+    local OLD_COUNT
+    OLD_COUNT=$(find "$STRATEGIES_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)
+    if [ "$OLD_COUNT" -gt 0 ]; then
+      local ARCHIVE_DIR="$OTTERWISE_DIR/archive/v1.4"
+      if [ -d "$ARCHIVE_DIR" ] && [ "$(find "$ARCHIVE_DIR" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)" -gt 0 ]; then
+        ok "v1.4 strategies already archived — skipping"
+      else
+        if [ "$DRY_RUN" = false ]; then
+          mkdir -p "$ARCHIVE_DIR"
+          mv "$STRATEGIES_DIR"/*.md "$ARCHIVE_DIR/" 2>/dev/null || true
+          ok "Archived $OLD_COUNT v1.4 strategies to archive/v1.4/"
+          changed
+        else
+          info "(dry-run) Would archive $OLD_COUNT v1.4 strategies"
+        fi
+      fi
+    else
+      ok "No v1.4 strategies to archive"
+    fi
+  fi
+
+  # 2. Update config.json schema: flat dataset string → {prices, sources} object, add fee block
+  local CONFIG="$OTTERWISE_DIR/config.json"
+  if [ -f "$CONFIG" ] && jq empty "$CONFIG" 2>/dev/null; then
+    local DATASET_TYPE
+    DATASET_TYPE=$(jq -r '.dataset | type' "$CONFIG" 2>/dev/null)
+    if [ "$DATASET_TYPE" = "string" ]; then
+      if [ "$DRY_RUN" = false ]; then
+        local OLD_DATASET
+        OLD_DATASET=$(jq -r '.dataset' "$CONFIG")
+        jq --arg prices "$OLD_DATASET" \
+          '.dataset = { prices: $prices, sources: null } |
+           .fee = { stock_pct: 0.24, etf_pct: 0.04 }' \
+          "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
+        ok "Updated config.json: dataset → { prices, sources }, added fee block"
+        changed
+      else
+        info "(dry-run) Would update config.json dataset format and add fee block"
+      fi
+    elif ! jq -e '.fee' "$CONFIG" >/dev/null 2>&1; then
+      # Dataset already object but fee block missing
+      if [ "$DRY_RUN" = false ]; then
+        jq '.fee = { stock_pct: 0.24, etf_pct: 0.04 }' \
+          "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
+        ok "Added fee block to config.json"
+        changed
+      else
+        info "(dry-run) Would add fee block to config.json"
+      fi
+    else
+      ok "config.json already in v1.5 format"
+    fi
+  fi
+
+  # 3. Clear autopilot.json strategies (v1.4 format incompatible)
+  local AUTOPILOT="$OTTERWISE_DIR/autopilot.json"
+  if [ -f "$AUTOPILOT" ] && jq empty "$AUTOPILOT" 2>/dev/null; then
+    local STRAT_COUNT
+    STRAT_COUNT=$(jq '.strategies | length' "$AUTOPILOT" 2>/dev/null || echo "0")
+    if [ "$STRAT_COUNT" -gt 0 ]; then
+      if [ "$DRY_RUN" = false ]; then
+        jq '.strategies = [] | .modeStats = {} | .lastModes = []' \
+          "$AUTOPILOT" > "${AUTOPILOT}.tmp" && mv "${AUTOPILOT}.tmp" "$AUTOPILOT"
+        ok "Reset autopilot.json strategies (v1.4 format incompatible)"
+        changed
+      else
+        info "(dry-run) Would reset autopilot.json strategies"
+      fi
+    else
+      ok "autopilot.json strategies already empty"
+    fi
+  fi
+
+  # 4. Clear old artifacts
+  local ARTIFACTS_DIR="$OTTERWISE_DIR/artifacts"
+  if [ -d "$ARTIFACTS_DIR" ]; then
+    local ARTIFACT_COUNT
+    ARTIFACT_COUNT=$(find "$ARTIFACTS_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+    if [ "$ARTIFACT_COUNT" -gt 0 ]; then
+      if [ "$DRY_RUN" = false ]; then
+        rm -rf "$ARTIFACTS_DIR"/*
+        ok "Cleared $ARTIFACT_COUNT v1.4 artifact folders"
+        changed
+      else
+        info "(dry-run) Would clear $ARTIFACT_COUNT artifact folders"
+      fi
+    else
+      ok "No old artifacts to clear"
+    fi
+  fi
+}
+
 # --- 6. Clean up design docs from .otterwise/ ------------------------------
 #
 # .otterwise/ should only contain research data (config, state, strategies/).
@@ -1021,6 +1135,7 @@ main() {
   migrate_v120_to_v130
   migrate_v130_to_v140
   migrate_artifacts_to_per_cycle
+  migrate_v140_to_v150
   validate_cache
   cleanup_design_docs
   validate_plugin

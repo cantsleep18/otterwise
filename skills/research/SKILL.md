@@ -5,15 +5,15 @@ description: Start a new investment research session — single OLJC cycle on a 
 
 # /otterwise:research
 
-Run one investment research cycle on a dataset. Discover a phenomenon (OBSERVE), verify it against price data (LOOK), judge its validity (JUDGE), and crystallize it into a strategy document (CRYSTALLIZE). You (the main Claude session) ARE the research lead -- do NOT delegate leadership to a sub-agent.
+Run one 종가베팅 research cycle on a dataset. Discover a phenomenon (OBSERVE), backtest overnight returns (LOOK), judge by quantitative gates (JUDGE), and crystallize into a strategy document (CRYSTALLIZE). You (the main Claude session) ARE the research lead -- do NOT delegate leadership to a sub-agent.
 
 ## Usage
 
 ```
-/otterwise:research /path/to/dataset "Optional investment goals"
+/otterwise:research /path/to/prices "Optional goals" [/path/to/sources]
 ```
 
-Optional: specify research mode -- `/otterwise:research /path/to/dataset "goals" mode=news_replay`. Default: auto-selected in ROUTE.
+Optional: specify research mode -- `/otterwise:research /path/to/prices "goals" mode=news_replay`. Default: auto-selected in ROUTE.
 
 ## Workflow
 
@@ -26,152 +26,150 @@ INIT ──> ROUTE ──> OBSERVE ──> LOOK ──> JUDGE ──┬──> C
 
 ## Phase: INIT
 
-1. Parse user input: dataset path, optional goals, optional mode override.
+1. Parse user input: prices path (required), optional goals, optional sources path, optional mode override.
 2. Create `.otterwise/` with subdirectories: `strategies/`, `artifacts/`.
-3. Write `config.json`: `{ dataset, goals, investmentMode: true }`.
-4. Explore dataset inline (do NOT spawn agent): list files, read samples, identify data types (prices, financials, news, insider transactions), note quality issues.
+3. Write `config.json`:
+   ```json
+   {
+     "dataset": { "prices": "/path/to/prices/", "sources": "/path/to/sources/" },
+     "goals": "user goals",
+     "investmentMode": true,
+     "fee": { "stock_pct": 0.24, "etf_pct": 0.04 }
+   }
+   ```
+   `sources` is `null` if not provided.
+4. Explore dataset inline (do NOT spawn agent): list files in prices dir (and sources dir if given), read samples, identify data types, note quality issues.
 5. Proceed to **ROUTE**.
 
-If dataset missing/empty: abort with message to user.
+If prices path missing/empty: abort with message to user.
 
 ## ROUTE
 
 Select research mode -- auto or user-specified.
 
-If user specified a mode, use it. Otherwise, reason about dataset contents (available data types, file structure) and user goals to pick the best fit.
+If user specified a mode, use it. Otherwise, reason about dataset contents and user goals to pick the best fit.
 
 **Research modes** (10):
 
-| # | Mode | Description |
-|---|------|-------------|
-| 1 | `brute_force` | Indicator x condition enumeration |
-| 2 | `news_replay` | News event price patterns |
-| 3 | `condition_combo` | Combine weak signals into strong |
-| 4 | `anomaly_detection` | Outlier → price reaction |
-| 5 | `copycat` | Apply valid pattern to other stocks |
-| 6 | `narrative_shift` | Corporate story change → price impact |
-| 7 | `consensus_gap` | Market expectation vs reality gap |
-| 8 | `supply_chain` | Upstream/downstream company signals |
-| 9 | `regulatory` | Policy/regulation → sector impact |
-| 10 | `behavioral` | Executive behavior patterns → signals |
+| # | Mode | OBSERVE Focus | LOOK Focus |
+|---|------|---------------|------------|
+| 1 | `brute_force` | 가격/거래량 극단값 | 해당 조건일 종가베팅 수익률 |
+| 2 | `news_replay` | 뉴스 유형별 당일 반응 | 뉴스 발생일 종가베팅 수익률 |
+| 3 | `condition_combo` | 복수 조건 동시 충족일 | 조건 조합일 종가베팅 수익률 |
+| 4 | `anomaly_detection` | 통계적 이상치 탐지 | 이상치 발생일 종가베팅 수익률 |
+| 5 | `copycat` | 검증 패턴 타종목 적용 | 타종목 패턴일 종가베팅 수익률 |
+| 6 | `narrative_shift` | 기업 스토리 전환점 | 전환점 발생일 종가베팅 수익률 |
+| 7 | `consensus_gap` | 컨센서스 vs 실제 괴리 | 괴리 발생일 종가베팅 수익률 |
+| 8 | `supply_chain` | 업스트림 시그널 | 시그널일 하류 종목 종가베팅 수익률 |
+| 9 | `regulatory` | 정책/규제 이벤트 | 이벤트일 섹터 종가베팅 수익률 |
+| 10 | `behavioral` | 경영진 행동 패턴 | 패턴 발생일 종가베팅 수익률 |
 
 Expansion type is always `seed` (new research, no existing graph). Pass routing directive (mode, focus area, priority data files) inline to OBSERVE.
 
 ## OBSERVE
 
-**Cycle ID** (generate before any file writes): `{id}` = `YYYYMMDD_HHMM_{8hex}` (current time + random hex, e.g. `20260401_1200_a1b2c3d4`). Choose kebab-case `{name}` for the topic (e.g. `earnings-surprise`). Use `{id}_{name}` consistently for artifact folder AND strategy file this cycle.
+**Cycle ID** (generate before any file writes): `{id}` = `YYYYMMDD_HHMM_{8hex}` (current time + random hex, e.g. `20260401_1200_a1b2c3d4`). Choose kebab-case `{name}` for the topic. Use `{id}_{name}` consistently for artifact folder AND strategy file this cycle.
 
 Discover a phenomenon from data -- observation, not analysis. The goal is "어?" not "통계적 유의성".
 
 1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 15-min timeout.
-2. **Researcher receives**: mode-specific objectives, dataset path, user goals. Key instruction: observe phenomena, do not hypothesize.
+2. **Researcher receives**: mode-specific objectives (from table above), dataset paths (prices + sources), user goals. Key instruction: observe phenomena, articulate why this could produce overnight returns.
 3. **Output**: `.otterwise/artifacts/{id}_{name}/01_discovery.md`
    ```
-   ## 현상         — observed fact, no interpretation
-   ## 데이터 근거   — file, column, row range where found
-   ## 흥미로운 점   — why this stands out
-   ## 확인 필요 사항 — specific questions for LOOK
+   ## 현상         — observed event, natural language
+   ## 데이터 근거   — which files/columns/rows, what was seen
+   ## 종가베팅 가설  — why buying at close on this event might yield overnight profit
+   ## 확인 필요 사항 — specific tickers/dates to check in LOOK
    ```
    Create the per-cycle folder `artifacts/{id}_{name}/` on first write.
 4. Shutdown researcher, delete team. Pass phenomenon to LOOK.
 
 ## LOOK
 
-Researchers verify the phenomenon against actual price behavior in parallel.
+Researchers mark event dates and calculate overnight returns in parallel.
 
 1. **Teams API**: TeamCreate, K tasks (default 3), K researchers in ONE message. Poll 5-min intervals, 10-min timeout.
-2. **Researcher receives**: phenomenon from OBSERVE, dataset path, assigned subset (time period/sector/stock group), mode context.
-3. **Data evidence rules** -- researchers MUST:
-   - Include `| 날짜 | 가격 | 이벤트 |` table for every case
-   - Write each case as `### 사례 N: {종목} ({시기})`
-   - Add `> [!data]- 원본 데이터` callout with source paths
-   - Mark exceptions: `### ⚠️ 사례 N: {종목} (예외)` with interpretation
-   - NO summary-only cases -- no table means no case
-   - Use WebSearch/WebFetch for price validation; every claim needs `[source: URL or file]`
-4. **50%+ failure tolerance**: if majority fail, continue with available results.
-5. **Synthesize** into `.otterwise/artifacts/{id}_{name}/02_evidence.md` (combined) and per-subset files `02_evidence_{subset}.md`:
+2. **Researcher receives**: phenomenon from OBSERVE, prices dataset path, assigned subset (time period/sector/stock group), mode context, fee rates from config.json.
+3. **Overnight return calculation**:
+   - Gross return: `(next_open - close) / close`
+   - Net return: `gross_return - fee_pct/100` (stock: 0.24%, ETF: 0.04%)
+   - Claude reads price data directly and does the math -- no backtest engine.
+4. **Output per researcher**: event table + metrics for their subset.
+5. **50%+ failure tolerance**: if majority fail, continue with available results.
+6. **Synthesize** into `.otterwise/artifacts/{id}_{name}/02_evidence.md` (combined) and per-subset `02_evidence_{subset}.md`:
    ```
-   ## 현상 요약    — phenomenon from OBSERVE
-   ## 사례 기록    — per-case sections with tables + source callouts
-   ## 공통점       — repeated patterns across cases
-   ## 갈림길       — conditions that lead to different outcomes
+   ## 현상 요약
+   ## 이벤트 마킹
+   | 날짜 | 종목 | 이벤트 | 종가 | 익일시가 | gross수익률 | fee | net수익률 |
+   ## 집계
+   - trades / winners / losers / win_rate_pct / avg_return_pct / profit_factor / max_consecutive_losses
+   ## 관찰
    ```
-6. Shutdown researchers, delete team. Pass synthesized output to JUDGE.
+   Aggregate metrics recalculated across all subsets.
+7. Shutdown researchers, delete team. Pass synthesized output to JUDGE.
 
 ## JUDGE
 
 Team lead judges inline -- no agent spawn, no Teams API.
 
 1. Read OBSERVE output and LOOK output in full.
-2. Apply four criteria (reason through evidence, no numeric thresholds):
-   - **일관성**: Do cases show a repeatable pattern?
-   - **설명 가능성**: Can the phenomenon be reasonably explained?
-   - **예외 해석**: Are exceptions understandable, not pattern-breaking?
-   - **투자 유의미성**: Does this matter for investment decisions?
-3. Decide: **WRITE** or **SKIP**. No middle ground.
-4. Log to `.otterwise/artifacts/{id}_{name}/03_evaluation.md`:
+2. **Quantitative gates** (all must pass for WRITE):
+   - `profit_factor > 1.5`
+   - Sufficient trades (>=10 preferred, judgment call for rare events)
+   - `avg_return_pct > 0` (positive after fees)
+3. **Secondary** (informational, not gates): `win_rate_pct`, `max_consecutive_losses`, explainability, repeatability.
+4. Decide: **WRITE** or **SKIP**. No middle ground.
+5. Log to `.otterwise/artifacts/{id}_{name}/03_evaluation.md`:
    ```
    ## 판정: {WRITE | SKIP}
-   ## 근거
-   - 일관성: {assessment}
+   ## 정량 기준
+   - profit_factor: {value} (gate: > 1.5)
+   - trades: {value} (gate: sufficient)
+   - avg_return_pct: {value} (gate: positive)
+   - win_rate_pct: {value}
+   - max_consecutive_losses: {value}
+   ## 정성 판단
    - 설명 가능성: {assessment}
-   - 예외 해석: {assessment}
-   - 투자 관점: {assessment}
+   - 반복 가능성: {assessment}
    ## 사유
    {1-2 sentence rationale}
    ```
-5. **WRITE** → proceed to CRYSTALLIZE. **SKIP** → record SKIP in `03_evaluation.md`, report result to user, done.
+6. **WRITE** -> proceed to CRYSTALLIZE. **SKIP** -> log in `03_evaluation.md`, report to user, done.
 
 ## CRYSTALLIZE
 
 Write the final strategy document in Obsidian-compatible format.
 
 1. **Teams API**: TeamCreate, 1 task, 1 researcher. Poll 5-min intervals, 10-min timeout.
-2. **Researcher receives**: JUDGE rationale, OBSERVE phenomenon, LOOK case records (full), dataset path.
-3. **Output**: `.otterwise/strategies/{id}_{name}.md` -- must pass `validate-strategy.sh`:
-   - YAML frontmatter: `id` (YYYYMMDD_HHMM_{8hex}), `type: seed` (always), `status: draft` (always), `phenomenon`, `researchMode`, `tags`, optional `observationPeriod` (include for time-series data, omit for snapshots)
-   - `## 관련 전략` -- "독립 전략 (seed)" (no existing graph)
-   - `## 현상` -- concise phenomenon with key numbers
-   - `## 가격 관찰` -- summary table + per-case `| 날짜 | 가격 | 이벤트 |` tables + `> [!data]-` callouts + `⚠️` exceptions
-   - `## 해석` -- analyst interpretation (not trading rules)
-   - `## 전략 아이디어` -- investment monitoring approach
-   - `## 한계 및 주의사항` -- limitations, sample size, exceptions
+2. **Researcher receives**: JUDGE rationale, OBSERVE phenomenon, LOOK event table + aggregates, dataset path.
+3. **Output**: `.otterwise/strategies/{id}_{name}.md`:
+   - YAML frontmatter: `id`, `type: seed`, `status: draft`, `phenomenon`, `researchMode`, `tags`, `backtest:` block (tickers, period, trades, winners, losers, win_rate_pct, avg_return_pct, profit_factor, max_consecutive_losses, fee_applied_pct -- values from LOOK)
+   - `## 관련 전략` -- "독립 전략 (seed)"
+   - `## 현상` -- natural language event description
+   - `## 이벤트 발생일 및 종가베팅 결과` -- event table (날짜, 종목, 이벤트, 종가, 익일시가, 수익률 -- net returns only)
+   - `## 집계` -- plain-text aggregates matching frontmatter
+   - `## 해석` -- why this phenomenon works for 종가베팅
+   - `## 한계 및 주의사항` -- limitations
 4. Shutdown researcher, delete team. Report result to user.
 
 ## Teams API Lifecycle (Per Phase)
 
-Each phase follows: **TeamCreate** (`"research-{YYYYMMDD-HHMMSS}-{phase}-{name}"`) → **TaskCreate** x K → **Agent** x K (ALL in one message, `general-purpose`, `bypassPermissions`, `run_in_background: true`) → **TaskList** poll (5-min intervals, phase-specific timeout; on timeout continue with available results) → **Read** outputs → **SendMessage** shutdown_request → **TeamDelete** (1 retry on failure).
+Each phase follows: **TeamCreate** (`"research-{YYYYMMDD-HHMMSS}-{phase}-{name}"`) -> **TaskCreate** x K -> **Agent** x K (ALL in one message, `general-purpose`, `bypassPermissions`, `run_in_background: true`) -> **TaskList** poll (5-min intervals, phase-specific timeout; on timeout continue with available results) -> **Read** outputs -> **SendMessage** shutdown_request -> **TeamDelete** (1 retry on failure).
 
 ## State Management
 
-### Directory Structure
-
 ```
 .otterwise/
-  config.json                          ← dataset, goals, investmentMode
+  config.json                          <- dataset, goals, fee, investmentMode
   strategies/
-    {id}_{name}.md                     ← CRYSTALLIZE output (Obsidian vault)
+    {id}_{name}.md                     <- CRYSTALLIZE output (Obsidian vault)
   artifacts/
-    {id}_{name}/                       ← per-cycle folder (created in OBSERVE)
-      01_discovery.md                  ← OBSERVE phenomenon
-      02_evidence.md                   ← LOOK combined case records
-      02_evidence_{subset}.md          ← LOOK per-subset evidence
-      03_evaluation.md                 ← JUDGE decision (WRITE or SKIP)
+    {id}_{name}/                       <- per-cycle folder (created in OBSERVE)
+      01_discovery.md                  <- OBSERVE phenomenon
+      02_evidence.md                   <- LOOK event table + metrics
+      02_evidence_{subset}.md          <- LOOK per-subset evidence
+      03_evaluation.md                 <- JUDGE decision (WRITE or SKIP)
 ```
-
-### Strategy Frontmatter
-
-```yaml
-id: "YYYYMMDD_HHMM_{8hex}"
-type: seed                             # always seed for research (no derive/explore/combine)
-status: draft                          # always draft (never skip to developing/established)
-phenomenon: "one-line description"
-researchMode: "mode_name"
-observationPeriod: "YYYY-YYYY"         # optional — include for time-series, omit for snapshots
-tags: [tag-1, tag-2]
-```
-
-Relationships via `[[wikilinks]]` in `## 관련 전략`. All strategy content in Korean.
 
 ## Error Handling
 
@@ -195,3 +193,5 @@ Relationships via `[[wikilinks]]` in `## 관련 전략`. All strategy content in
 - Research runs once -- no loop, no resume. Each invocation starts fresh.
 - No autopilot.json or autopilot-state.json -- research has no loop state.
 - All strategy content in Korean. Obsidian-compatible format (wikilinks, tags, callouts).
+- No backtest engine -- Claude reads price data and calculates returns directly.
+- No data format enforcement -- Claude reads whatever format the user provides.
