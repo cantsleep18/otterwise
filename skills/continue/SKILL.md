@@ -173,7 +173,7 @@ Each phase follows: **TeamCreate** (`"continue-{YYYYMMDD-HHMMSS}-{phase}-{name}"
 | >50% researchers fail | Continue with available results. Log warning. |
 | Dataset unavailable | Abort, report to user. |
 | Researcher crash (no output) | Log, exclude from synthesis. |
-| TeamDelete fails | Retry once. Log and continue. |
+| TeamDelete fails | Retry once. If still fails, ignore and continue. **Never `rm -rf ~/.claude/` paths.** |
 | Phase timeout | Continue with available results, log warning. |
 | JUDGE returns SKIP | Log verdict to `03_evaluation.md`, report to user, done. |
 | Target strategy not found | Abort, list available strategies for user. |

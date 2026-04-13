@@ -194,7 +194,7 @@ Strategy frontmatter: `id`, `type`, `status`, `phenomenon`, `researchMode`, `tag
 | >50% researchers fail | Continue with available results. Log warning. |
 | Dataset unavailable | Set status `"aborted"`, stop. |
 | Researcher crash (no output) | Log, exclude from synthesis. |
-| TeamDelete fails | Retry once. Log and continue. |
+| TeamDelete fails | Retry once. If still fails, ignore and continue. **Never `rm -rf ~/.claude/` paths.** |
 | Phase timeout | Continue with available results, log warning. |
 | JUDGE returns SKIP | Log to `03_evaluation.md`, return to ROUTE. |
 | Candidate in cooldown (3+ failures) | Skip, select next in ROUTE. |
